@@ -234,7 +234,7 @@ func (c *StandardHttpClient) GetValidatorStatuses(pubkeys []types.ValidatorPubke
 
 	// Filter out null pubkeys
 	nullPubkeyExists := false
-	realPubkeys := []types.ValidatorPubkey{}
+	realPubkeys := make([]types.ValidatorPubkey, 0, len(pubkeys))
 	for _, pubkey := range pubkeys {
 		if bytes.Equal(pubkey.Bytes(), nullPubkey.Bytes()) {
 			nullPubkeyExists = true
@@ -261,7 +261,7 @@ func (c *StandardHttpClient) GetValidatorStatuses(pubkeys []types.ValidatorPubke
 	}
 
 	// Build validator status map
-	statuses := make(map[types.ValidatorPubkey]beacon.ValidatorStatus)
+	statuses := make(map[types.ValidatorPubkey]beacon.ValidatorStatus, len(validators.Data))
 	for _, validator := range validators.Data {
 
 		// Get validator pubkey
@@ -533,9 +533,9 @@ func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) ([]beacon.Comm
 		return nil, err
 	}
 
-	committees := []beacon.Committee{}
+	committees := make([]beacon.Committee, 0, len(response.Data))
 	for _, committee := range response.Data {
-		validators := []uint64{}
+		validators := make([]uint64, 0, len(committee.Validators))
 		for _, validator := range committee.Validators {
 			validators = append(validators, uint64(validator))
 		}

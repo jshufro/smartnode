@@ -969,7 +969,7 @@ func (r *RewardsFile) getDutiesForEpoch(committees []beacon.Committee) error {
 func (r *RewardsFile) createMinipoolIndexMap() error {
 
 	// Make a slice of all minipool pubkeys
-	minipoolPubkeys := []rptypes.ValidatorPubkey{}
+	minipoolPubkeys := make([]rptypes.ValidatorPubkey, 0, len(r.nodeDetails) / 2)
 	for _, details := range r.nodeDetails {
 		if details.IsEligible {
 			for _, minipoolInfo := range details.Minipools {
@@ -979,7 +979,7 @@ func (r *RewardsFile) createMinipoolIndexMap() error {
 	}
 
 	// Get indices for all minipool validators
-	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
+	r.validatorIndexMap = make(map[uint64]*MinipoolInfo, len(minipoolPubkeys))
 	statusMap, err := r.bc.GetValidatorStatuses(minipoolPubkeys, &beacon.ValidatorStatusOptions{
 		Slot: &r.ConsensusEndBlock,
 	})
