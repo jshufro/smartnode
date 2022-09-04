@@ -45,7 +45,7 @@ require (
 	github.com/wealdtech/go-merkletree v1.0.1-0.20190605192610-2bb163c2ea2a
 	github.com/web3-storage/go-w3s-client v0.0.6
 	golang.org/x/crypto v0.0.0-20211115234514-b4de73f9ece8
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+	golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	golang.org/x/tools v0.1.9 // indirect
 	google.golang.org/grpc v1.42.0 // indirect
