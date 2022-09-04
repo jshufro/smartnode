@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -38,11 +39,15 @@ type MinipoolInfo struct {
 	MinipoolShare           *big.Int
 	MissingAttestationSlots map[uint64]bool
 	WasActive               bool
+
+	lock			sync.RWMutex
 }
 
 type IntervalDutiesInfo struct {
 	Index uint64
 	Slots map[uint64]*SlotInfo
+
+	lock			sync.RWMutex
 }
 
 type SlotInfo struct {

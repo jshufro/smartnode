@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"sync/atomic"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -800,27 +801,70 @@ func (r *RewardsFile) processAttestationsForInterval() error {
 	r.log.Printlnf("%s Checking participation of %d minipools for epochs %d to %d", r.logPrefix, len(r.validatorIndexMap), startEpoch, endEpoch)
 	r.log.Printlnf("%s NOTE: this will take a long time, progress is reported every 100 epochs", r.logPrefix)
 
-	epochsDone := 0
+
+	// Cheap parallelism- only query 32 epochs at a time, since they each parallelize slot queries too.
+	var wg errgroup.Group
+	wg.SetLimit(16)
 	reportStartTime := time.Now()
+	var epochsDone uint32
 	for epoch := startEpoch; epoch < endEpoch+1; epoch++ {
-		if epochsDone == 100 {
-			timeTaken := time.Since(reportStartTime)
-			r.log.Printlnf("%s On Epoch %d... (%s so far)", r.logPrefix, epoch, timeTaken)
-			epochsDone = 0
-		}
+		epoch := epoch
 
-		err := r.processEpoch(true, epoch)
-		if err != nil {
-			return err
-		}
+		wg.Go(func() error {
 
-		epochsDone++
+			err := r.getEpochCommittees(epoch)
+			if err != nil {
+				return err
+			}
+
+			for {
+				e := atomic.LoadUint32(&epochsDone);
+				if atomic.CompareAndSwapUint32(&epochsDone, e, e + 1) == false {
+					continue
+				}
+
+				if e != 0 && e % 100 == 0 {
+					timeTaken := time.Since(reportStartTime)
+					r.log.Printlnf("%s (Duties) On Epoch %d of %d... (%s so far)", r.logPrefix, e, 1 + endEpoch - startEpoch, timeTaken)
+				}
+				break
+			}
+			return nil
+		})
 	}
 
-	// Check the epoch after the end of the interval for any lingering attestations
-	epoch := endEpoch + 1
-	err = r.processEpoch(false, epoch)
-	if err != nil {
+	if err := wg.Wait(); err != nil {
+		return err
+	}
+
+	epochsDone = 0
+	// Include the epoch after the last epoch to check for lingering attestations
+	for epoch := startEpoch; epoch <= endEpoch+1; epoch++ {
+		epoch := epoch
+
+		wg.Go(func() error {
+			err := r.processEpoch(epoch)
+			if err != nil {
+				return err
+			}
+
+			for {
+				e := atomic.LoadUint32(&epochsDone);
+				if atomic.CompareAndSwapUint32(&epochsDone, e, e + 1) == false {
+					continue
+				}
+
+				if e % 100 == 0 {
+					timeTaken := time.Since(reportStartTime)
+					r.log.Printlnf("%s (Attestations) On Epoch %d of %d... (%s so far)", r.logPrefix, e, 1 + endEpoch - startEpoch, timeTaken)
+				}
+				break
+			}
+			return nil
+		})
+	}
+
+	if err := wg.Wait(); err != nil {
 		return err
 	}
 
@@ -829,21 +873,31 @@ func (r *RewardsFile) processAttestationsForInterval() error {
 
 }
 
-// Process an epoch, optionally getting the duties for all eligible minipools in it and checking each one's attestation performance
-func (r *RewardsFile) processEpoch(getDuties bool, epoch uint64) error {
-
-	// Get the committee info and attestation records for this epoch
+// Gets duty info for future epochs
+func (r *RewardsFile) getEpochCommittees(epoch uint64) error {
 	var committeeData []beacon.Committee
+	var err error
+
+	committeeData, err = r.bc.GetCommitteesForEpoch(&epoch)
+	if err != nil {
+		return err
+	}
+
+	// Get all of the expected duties for the epoch
+	err = r.getDutiesForEpoch(committeeData)
+	if err != nil {
+		return fmt.Errorf("Error getting duties for epoch %d: %w", epoch, err)
+	}
+
+	return nil
+}
+
+// Process an epoch, optionally getting the duties for all eligible minipools in it and checking each one's attestation performance
+func (r *RewardsFile) processEpoch(epoch uint64) error {
+
+	// Get the attestation records for this epoch
 	attestationsPerSlot := make([][]beacon.AttestationInfo, r.slotsPerEpoch)
 	var wg errgroup.Group
-
-	if getDuties {
-		wg.Go(func() error {
-			var err error
-			committeeData, err = r.bc.GetCommitteesForEpoch(&epoch)
-			return err
-		})
-	}
 
 	for i := uint64(0); i < r.slotsPerEpoch; i++ {
 		i := i
@@ -866,14 +920,6 @@ func (r *RewardsFile) processEpoch(getDuties bool, epoch uint64) error {
 		return fmt.Errorf("Error getting committee and attestaion records for epoch %d: %w", epoch, err)
 	}
 
-	if getDuties {
-		// Get all of the expected duties for the epoch
-		err = r.getDutiesForEpoch(committeeData)
-		if err != nil {
-			return fmt.Errorf("Error getting duties for epoch %d: %w", epoch, err)
-		}
-	}
-
 	// Process all of the slots in the epoch
 	for i := uint64(0); i < r.slotsPerEpoch; i++ {
 		attestations := attestationsPerSlot[i]
@@ -893,28 +939,41 @@ func (r *RewardsFile) checkDutiesForSlot(attestations []beacon.AttestationInfo) 
 	for _, attestation := range attestations {
 
 		// Get the RP committees for this attestation's slot and index
+		r.intervalDutiesInfo.lock.Lock()
 		slotInfo, exists := r.intervalDutiesInfo.Slots[attestation.SlotIndex]
-		if exists {
-			rpCommittee, exists := slotInfo.Committees[attestation.CommitteeIndex]
-			if exists {
-				// Check if each RP validator attested successfully
-				for position, validator := range rpCommittee.Positions {
-					if attestation.AggregationBits.BitAt(uint64(position)) {
-						// We have a winner - remove this duty and update the scores
-						delete(rpCommittee.Positions, position)
-						if len(rpCommittee.Positions) == 0 {
-							delete(slotInfo.Committees, attestation.CommitteeIndex)
-						}
-						if len(slotInfo.Committees) == 0 {
-							delete(r.intervalDutiesInfo.Slots, attestation.SlotIndex)
-						}
-						validator.MissedAttestations--
-						validator.GoodAttestations++
-						delete(validator.MissingAttestationSlots, attestation.SlotIndex)
-					}
-				}
-			}
+		if !exists {
+			r.intervalDutiesInfo.lock.Unlock()
+			continue
 		}
+
+		rpCommittee, exists := slotInfo.Committees[attestation.CommitteeIndex]
+		if !exists {
+			r.intervalDutiesInfo.lock.Unlock()
+			continue
+		}
+
+		// Check if each RP validator attested successfully
+		for position, validator := range rpCommittee.Positions {
+			if !attestation.AggregationBits.BitAt(uint64(position)) {
+				continue
+			}
+
+			// We have a winner - remove this duty and update the scores
+			delete(rpCommittee.Positions, position)
+			if len(rpCommittee.Positions) == 0 {
+				delete(slotInfo.Committees, attestation.CommitteeIndex)
+			}
+			if len(slotInfo.Committees) == 0 {
+				delete(r.intervalDutiesInfo.Slots, attestation.SlotIndex)
+			}
+			validator.lock.Lock()
+			validator.MissedAttestations--
+			validator.GoodAttestations++
+			delete(validator.MissingAttestationSlots, attestation.SlotIndex)
+			validator.lock.Unlock()
+
+		}
+		r.intervalDutiesInfo.lock.Unlock()
 	}
 
 	return nil
@@ -937,15 +996,20 @@ func (r *RewardsFile) getDutiesForEpoch(committees []beacon.Committee) error {
 		rpValidators := map[int]*MinipoolInfo{}
 		for position, validator := range committee.Validators {
 			minipoolInfo, exists := r.validatorIndexMap[validator]
-			if exists {
-				rpValidators[position] = minipoolInfo
-				minipoolInfo.MissedAttestations += 1 // Consider this attestation missed until it's seen later
-				minipoolInfo.MissingAttestationSlots[slotIndex] = true
+			if !exists {
+				continue
 			}
+
+			rpValidators[position] = minipoolInfo
+			minipoolInfo.lock.Lock()
+			minipoolInfo.MissedAttestations += 1 // Consider this attestation missed until it's seen later
+			minipoolInfo.MissingAttestationSlots[slotIndex] = true
+			minipoolInfo.lock.Unlock()
 		}
 
 		// If there are some RP validators, add this committee to the map
 		if len(rpValidators) > 0 {
+			r.intervalDutiesInfo.lock.Lock()
 			slotInfo, exists := r.intervalDutiesInfo.Slots[slotIndex]
 			if !exists {
 				slotInfo = &SlotInfo{
@@ -958,6 +1022,7 @@ func (r *RewardsFile) getDutiesForEpoch(committees []beacon.Committee) error {
 				Index:     committeeIndex,
 				Positions: rpValidators,
 			}
+			r.intervalDutiesInfo.lock.Unlock()
 		}
 	}
 
