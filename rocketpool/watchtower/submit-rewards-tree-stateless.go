@@ -22,6 +22,7 @@ import (
 	"github.com/rocket-pool/smartnode/rocketpool/watchtower/utils"
 	"github.com/rocket-pool/smartnode/shared/services"
 	"github.com/rocket-pool/smartnode/shared/services/beacon"
+	"github.com/rocket-pool/smartnode/shared/services/beacon/client"
 	"github.com/rocket-pool/smartnode/shared/services/config"
 	rprewards "github.com/rocket-pool/smartnode/shared/services/rewards"
 	"github.com/rocket-pool/smartnode/shared/services/state"
@@ -66,10 +67,21 @@ func newSubmitRewardsTree_Stateless(c *cli.Context, logger log.ColorLogger, erro
 	if err != nil {
 		return nil, err
 	}
-	bc, err := services.GetBeaconClient(c)
-	if err != nil {
-		return nil, err
+
+	var bc beacon.Client
+	// Override the beacon client, if requested
+	if beaconOverride := os.Getenv("TREEGEN_BEACON_CLIENT_ENDPOINT"); beaconOverride != "" {
+		logger.Printlnf("Using %s as the Beacon Node for SubmitRewardsTree", beaconOverride)
+		bc = client.NewStandardHttpClient(beaconOverride)
+	} else {
+		var err error
+
+		bc, err = services.GetBeaconClient(c)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	rp, err := services.GetRocketPool(c)
 	if err != nil {
 		return nil, err
@@ -508,7 +520,8 @@ func (t *submitRewardsTree_Stateless) getSnapshotConsensusBlock(endTime time.Tim
 	targetSlot := uint64(math.Ceil(totalTimespan.Seconds() / float64(eth2Config.SecondsPerSlot)))
 	targetSlotEpoch := targetSlot / eth2Config.SlotsPerEpoch
 	targetSlot = targetSlotEpoch*eth2Config.SlotsPerEpoch + (eth2Config.SlotsPerEpoch - 1) // The target slot becomes the last one in the Epoch
-	requiredEpoch := targetSlotEpoch + 1                                                   // The smoothing pool requires 1 epoch beyond the target to be finalized, to check for late attestations
+	// XXX Jacob, you changed this from targetSlotEpoch + 1 so we start generating when the subsequent epoch justifies instead
+	requiredEpoch := targetSlotEpoch // The smoothing pool requires 1 epoch beyond the target to be finalized, to check for late attestations
 
 	// Check if the required epoch is finalized yet
 	if beaconHead.FinalizedEpoch < requiredEpoch {

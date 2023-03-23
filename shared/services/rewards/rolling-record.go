@@ -3,6 +3,7 @@ package rewards
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,7 +24,7 @@ const (
 type RollingRecord struct {
 	StartSlot         uint64                   `json:"startSlot"`
 	LastDutiesSlot    uint64                   `json:"lastDutiesSlot"`
-	ValidatorIndexMap map[string]*MinipoolInfo `json:"validatorIndexMap"`
+	ValidatorIndexMap map[uint64]*MinipoolInfo `json:"validatorIndexMap"`
 	RewardsInterval   uint64                   `json:"rewardsInterval"`
 	SmartnodeVersion  string                   `json:"smartnodeVersion,omitempty"`
 
@@ -45,7 +46,7 @@ func NewRollingRecord(log *log.ColorLogger, logPrefix string, bc beacon.Client, 
 	return &RollingRecord{
 		StartSlot:         startSlot,
 		LastDutiesSlot:    0,
-		ValidatorIndexMap: map[string]*MinipoolInfo{},
+		ValidatorIndexMap: map[uint64]*MinipoolInfo{},
 		RewardsInterval:   rewardsInterval,
 		SmartnodeVersion:  shared.RocketPoolVersion,
 
@@ -169,7 +170,7 @@ func (r *RollingRecord) Serialize() ([]byte, error) {
 		LastDutiesSlot:    r.LastDutiesSlot,
 		RewardsInterval:   r.RewardsInterval,
 		SmartnodeVersion:  r.SmartnodeVersion,
-		ValidatorIndexMap: map[string]*MinipoolInfo{},
+		ValidatorIndexMap: map[uint64]*MinipoolInfo{},
 	}
 
 	// Remove minipool perf records with zero attestations from the serialization
@@ -202,7 +203,12 @@ func (r *RollingRecord) updateValidatorIndices(state *state.NetworkState) {
 			continue
 		}
 
-		_, exists = r.ValidatorIndexMap[validator.Index]
+		idx, err := strconv.ParseUint(validator.Index, 10, 64)
+		if err != nil {
+			idx = 0
+		}
+
+		_, exists = r.ValidatorIndexMap[idx]
 		if !exists && mpd.Status == types.Staking {
 			// Validator exists and is staking but it hasn't been recorded yet, add it to the map and update the latest index so we don't remap stuff we've already seen
 			minipoolInfo := &MinipoolInfo{
@@ -213,7 +219,7 @@ func (r *RollingRecord) updateValidatorIndices(state *state.NetworkState) {
 				MissingAttestationSlots: map[uint64]bool{},
 				AttestationScore:        NewQuotedBigInt(0),
 			}
-			r.ValidatorIndexMap[validator.Index] = minipoolInfo
+			r.ValidatorIndexMap[idx] = minipoolInfo
 		}
 	}
 }

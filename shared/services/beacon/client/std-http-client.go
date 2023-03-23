@@ -8,17 +8,19 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/goccy/go-json"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
-	"github.com/rocket-pool/rocketpool-go/types"
 	eth2types "github.com/wealdtech/go-eth2-types/v2"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
+	"github.com/rocket-pool/rocketpool-go/types"
 	"github.com/rocket-pool/smartnode/shared/services/beacon"
+	"github.com/rocket-pool/smartnode/shared/services/beacon/client/pb"
 	"github.com/rocket-pool/smartnode/shared/utils/eth2"
 	hexutil "github.com/rocket-pool/smartnode/shared/utils/hex"
 )
@@ -474,28 +476,111 @@ func (c *StandardHttpClient) GetEth1DataForEth2Block(blockId string) (beacon.Eth
 
 }
 
-func (c *StandardHttpClient) GetAttestations(blockId string) ([]beacon.AttestationInfo, bool, error) {
-	attestations, exists, err := c.getAttestations(blockId)
+type attestationsResponseRaw struct {
+	body    []byte
+	version string
+}
+
+func (c *StandardHttpClient) GetAttestationsRaw(blockId string) (*attestationsResponseRaw, bool, error) {
+
+	// Build the request
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/eth/v2/beacon/blocks/%s", c.providerAddress, blockId), nil)
 	if err != nil {
 		return nil, false, err
 	}
-	if !exists {
+
+	req.Header.Set("accept", "application/octet-stream")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, false, err
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("Could not get attestations data for slot %s: HTTP status %d", blockId, resp.StatusCode)
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
 		return nil, false, nil
 	}
 
-	// Add attestation info
-	attestationInfo := make([]beacon.AttestationInfo, len(attestations.Data))
-	for i, attestation := range attestations.Data {
-		bitString := hexutil.RemovePrefix(attestation.AggregationBits)
-		attestationInfo[i].SlotIndex = uint64(attestation.Data.Slot)
-		attestationInfo[i].CommitteeIndex = uint64(attestation.Data.Index)
-		attestationInfo[i].AggregationBits, err = hex.DecodeString(bitString)
-		if err != nil {
-			return nil, false, fmt.Errorf("Error decoding aggregation bits for attestation %d of block %s: %w", i, blockId, err)
-		}
+	if resp.StatusCode != http.StatusOK {
+		return nil, false, fmt.Errorf("Could not get attestations data for slot %s: HTTP status %d; reponse body: '%s'", blockId, resp.StatusCode, string(body))
 	}
 
-	return attestationInfo, true, nil
+	return &attestationsResponseRaw{
+		body:    body,
+		version: resp.Header.Get("Eth-Consensus-Version"),
+	}, true, nil
+}
+
+func (c *StandardHttpClient) ParseAttestationsResponseRaw(resp *attestationsResponseRaw) ([]beacon.AttestationInfo, error) {
+	var attestations []*gec.Attestation
+
+	// Unmarshal block SSZ
+	if strings.EqualFold(resp.version, "phase0") {
+		block := new(gec.SignedBeaconBlockPhase0)
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
+			return nil, err
+		}
+
+		attestations = block.Block.Body.Attestations
+	} else if strings.EqualFold(resp.version, "altair") {
+		block := new(gec.SignedBeaconBlockAltair)
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
+			return nil, err
+		}
+
+		attestations = block.Block.Body.Attestations
+	} else if strings.EqualFold(resp.version, "bellatrix") {
+		block := new(gec.SignedBeaconBlockBellatrix)
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
+			return nil, err
+		}
+
+		attestations = block.Block.Body.Attestations
+	} else if strings.EqualFold(resp.version, "capella") {
+		block := new(gec.SignedBeaconBlockCapella)
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
+			return nil, err
+		}
+
+		attestations = block.Block.Body.Attestations
+	} else {
+		return nil, fmt.Errorf("unknown consensus version header: %s", resp.version)
+	}
+
+	out := make([]beacon.AttestationInfo, len(attestations))
+	for i := range attestations {
+		out[i].AggregationBits = attestations[i].AggregationBits
+		out[i].SlotIndex = attestations[i].Data.Slot
+		out[i].CommitteeIndex = attestations[i].Data.Index
+	}
+
+	return out, nil
+
+}
+
+func (c *StandardHttpClient) GetAttestations(blockId string) ([]beacon.AttestationInfo, bool, error) {
+	resp, found, err := c.GetAttestationsRaw(blockId)
+	if err != nil {
+		return nil, found, err
+	}
+
+	if found == false {
+		return nil, found, err
+	}
+
+	out, err := c.ParseAttestationsResponseRaw(resp)
+	if err != nil {
+		return nil, found, err
+	}
+
+	return out, true, nil
 }
 
 func (c *StandardHttpClient) GetBeaconBlock(blockId string) (beacon.BeaconBlock, bool, error) {
@@ -554,14 +639,64 @@ func (c *StandardHttpClient) GetBeaconBlockHeader(blockId string) (beacon.Beacon
 	return beaconBlock, true, nil
 }
 
-// Get the attestation committees for the given epoch, or the current epoch if nil
+type committeeWrapper struct {
+	resp *pb.CommitteesResponse
+}
+
+func (w *committeeWrapper) Count() int {
+	return len(w.resp.Data)
+}
+
+func (w *committeeWrapper) Index(i int) uint64 {
+	return w.resp.Data[i].Index
+}
+
+func (w *committeeWrapper) Slot(i int) uint64 {
+	return w.resp.Data[i].Slot
+}
+
+func (w *committeeWrapper) Validators(i int) []uint64 {
+	return w.resp.Data[i].Validators
+}
+
+func (w *committeeWrapper) Release() {
+
+}
+
 func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) (beacon.Committees, error) {
-	response, err := c.getCommittees("head", epoch)
+	query := ""
+	if epoch != nil {
+		query = fmt.Sprintf("?epoch=%d", *epoch)
+	}
+	responseBody, header, status, err := c.protoGetRequest(fmt.Sprintf(RequestCommitteePath, "head") + query)
+
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Could not get committees: %w", err)
+	}
+	if status != http.StatusOK {
+		return nil, fmt.Errorf("Could not get committees: HTTP status %d; response body: '%s'", status, string(responseBody))
 	}
 
-	return &response, nil
+	m := pb.CommitteesResponse{}
+	if header == nil || !strings.EqualFold(header.Get("Content-Type"), "application/protobuf") {
+		// Parse json
+		err := protojson.Unmarshal(responseBody, &m)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Parse proto
+		err = proto.Unmarshal(responseBody, &m)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	out := committeeWrapper{
+		resp: &m,
+	}
+
+	return &out, nil
 }
 
 // Perform a withdrawal credentials change on a validator
@@ -828,76 +963,6 @@ func (c *StandardHttpClient) getBeaconBlockHeader(blockId string) (BeaconBlockHe
 	return beaconBlock, true, nil
 }
 
-type committeesDecoder struct {
-	decoder       *json.Decoder
-	currentReader *io.ReadCloser
-}
-
-// Read will be called by the json decoder to request more bytes of data from
-// the beacon node's committees response. Since the decoder is reused, we
-// need to avoid sending it io.EOF, or it will enter an unusable state and can
-// not be reused later.
-//
-// On subsequent calls to Decode, the decoder resets its internal buffer, which
-// means any data it reads between the last json token and EOF is correctly
-// discarded.
-func (c *committeesDecoder) Read(p []byte) (int, error) {
-	n, err := (*c.currentReader).Read(p)
-	if err == io.EOF {
-		return n, nil
-	}
-
-	return n, err
-}
-
-var committeesDecoderPool sync.Pool = sync.Pool{
-	New: func() any {
-		var out committeesDecoder
-
-		out.decoder = json.NewDecoder(&out)
-		return &out
-	},
-}
-
-// Get the committees for the epoch
-func (c *StandardHttpClient) getCommittees(stateId string, epoch *uint64) (CommitteesResponse, error) {
-	var committees CommitteesResponse
-
-	query := ""
-	if epoch != nil {
-		query = fmt.Sprintf("?epoch=%d", *epoch)
-	}
-
-	// Committees responses are large, so let the json decoder read it in a buffered fashion
-	reader, status, err := c.getRequestReader(fmt.Sprintf(RequestCommitteePath, stateId) + query)
-	if err != nil {
-		return CommitteesResponse{}, fmt.Errorf("Could not get committees: %w", err)
-	}
-	defer func() {
-		_ = reader.Close()
-	}()
-
-	if status != http.StatusOK {
-		body, _ := io.ReadAll(reader)
-		return CommitteesResponse{}, fmt.Errorf("Could not get committees: HTTP status %d; response body: '%s'", status, string(body))
-	}
-
-	d := committeesDecoderPool.Get().(*committeesDecoder)
-	defer func() {
-		d.currentReader = nil
-		committeesDecoderPool.Put(d)
-	}()
-
-	d.currentReader = &reader
-
-	// Begin decoding
-	if err := d.decoder.Decode(&committees); err != nil {
-		return CommitteesResponse{}, fmt.Errorf("Could not decode committees: %w", err)
-	}
-
-	return committees, nil
-}
-
 // Send withdrawal credentials change request
 func (c *StandardHttpClient) postWithdrawalCredentialsChange(request BLSToExecutionChangeRequest) error {
 	requestArray := []BLSToExecutionChangeRequest{request} // This route must be wrapped in an array
@@ -911,7 +976,30 @@ func (c *StandardHttpClient) postWithdrawalCredentialsChange(request BLSToExecut
 	return nil
 }
 
-// Make a GET request but do not read its body yet (allows buffered decoding)
+func (c *StandardHttpClient) protoGetRequest(requestPath string) ([]byte, http.Header, int, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf(RequestUrlFormat, c.providerAddress, requestPath), nil)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	req.Header.Set("Accept", "application/protobuf")
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	defer func() {
+		_ = response.Body.Close()
+	}()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	return body, response.Header, response.StatusCode, nil
+}
+
+// Make a GET request to the beacon node
 func (c *StandardHttpClient) getRequestReader(requestPath string) (io.ReadCloser, int, error) {
 
 	// Send request
