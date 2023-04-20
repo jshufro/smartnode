@@ -45,7 +45,7 @@ type treeGeneratorImpl_v5 struct {
 	nodeDetails            []*NodeSmoothingDetails
 	smoothingPoolBalance   *big.Int
 	smoothingPoolAddress   common.Address
-	intervalDutiesInfo     *IntervalDutiesInfo
+	intervalDutiesInfo     *IntervalDutiesInfoV5
 	slotsPerEpoch          uint64
 	validatorIndexMap      map[uint64]*MinipoolInfo
 	elStartTime            time.Time
@@ -57,7 +57,9 @@ type treeGeneratorImpl_v5 struct {
 	validatorStatusMap     map[rptypes.ValidatorPubkey]beacon.ValidatorStatus
 	totalAttestationScore  *big.Int
 	successfulAttestations uint64
+	oneEth                 *big.Int
 	zero                   *big.Int
+	thirtyTwoEth           *big.Int
 }
 
 type epochState struct {
@@ -69,7 +71,9 @@ type epochState struct {
 // Create a new tree generator
 func newTreeGeneratorImpl_v5(log log.ColorLogger, logPrefix string, index uint64, startTime time.Time, endTime time.Time, consensusBlock uint64, elSnapshotHeader *types.Header, intervalsPassed uint64, state *state.NetworkState) *treeGeneratorImpl_v5 {
 	return &treeGeneratorImpl_v5{
-		zero: big.NewInt(0),
+		zero:         big.NewInt(0),
+		oneEth:       eth.EthToWei(1),
+		thirtyTwoEth: eth.EthToWei(32),
 		rewardsFile: &RewardsFile{
 			RewardsFileVersion: 1,
 			RulesetVersion:     5,
@@ -564,9 +568,9 @@ func (r *treeGeneratorImpl_v5) calculateEthRewards(checkBeaconPerformance bool) 
 	r.log.Printlnf("%s %d / %d nodes were eligible for Smoothing Pool rewards", r.logPrefix, eligible, len(r.nodeDetails))
 
 	// Process the attestation performance for each minipool during this interval
-	r.intervalDutiesInfo = &IntervalDutiesInfo{
+	r.intervalDutiesInfo = &IntervalDutiesInfoV5{
 		Index: r.rewardsFile.Index,
-		Slots: map[uint64]*SlotInfo{},
+		Slots: make([]*SlotInfoV5, 1+r.rewardsFile.ConsensusEndBlock-r.rewardsFile.ConsensusStartBlock),
 	}
 	if checkBeaconPerformance {
 		err = r.processAttestationsForInterval()
@@ -582,7 +586,7 @@ func (r *treeGeneratorImpl_v5) calculateEthRewards(checkBeaconPerformance bool) 
 			// Check if the node is currently opted in for simplicity
 			if nodeInfo.IsEligible && nodeInfo.IsOptedIn && r.elEndTime.Sub(nodeInfo.OptInTime) > 0 {
 				for _, minipool := range nodeInfo.Minipools {
-					minipool.CompletedAttestations = map[uint64]bool{0: true}
+					minipool.CompletedAttestations = 1
 
 					// Make up an attestation
 					details := r.networkState.MinipoolDetailsByAddress[minipool.Address]
@@ -636,7 +640,7 @@ func (r *treeGeneratorImpl_v5) calculateEthRewards(checkBeaconPerformance bool) 
 
 			// Add minipool rewards to the JSON
 			for _, minipoolInfo := range nodeInfo.Minipools {
-				successfulAttestations := uint64(len(minipoolInfo.CompletedAttestations))
+				successfulAttestations := minipoolInfo.CompletedAttestations
 				missingAttestations := uint64(len(minipoolInfo.MissingAttestationSlots))
 				performance := &SmoothingPoolMinipoolPerformance{
 					Pubkey:                  minipoolInfo.ValidatorPubkey.Hex(),
@@ -697,7 +701,7 @@ func (r *treeGeneratorImpl_v5) calculateNodeRewards() (*big.Int, *big.Int, error
 		nodeInfo.SmoothingPoolEth = big.NewInt(0)
 		if nodeInfo.IsEligible {
 			for _, minipool := range nodeInfo.Minipools {
-				if len(minipool.CompletedAttestations)+len(minipool.MissingAttestationSlots) == 0 || !minipool.WasActive {
+				if minipool.CompletedAttestations+uint64(len(minipool.MissingAttestationSlots)) == 0 || !minipool.WasActive {
 					// Ignore minipools that weren't active for the interval
 					minipool.WasActive = false
 					minipool.MinipoolShare = big.NewInt(0)
@@ -748,7 +752,11 @@ func getWorkerCount() uint64 {
 	return uint64(target)
 }
 
-func (r *treeGeneratorImpl_v5) fetchEpochs(startEpoch uint64, endEpoch uint64, errChan chan error, startTime time.Time) {
+func (r *treeGeneratorImpl_v5) fetchEpochs(startEpoch uint64,
+	endEpoch uint64,
+	errChan chan<- error,
+	attChan chan<- *epochState,
+	startTime time.Time) {
 	// seq tracks the next expected epoch in the sequence to be sent to the caller
 	// Since we fetch epochs in parallel, each thread will sleep until it becomes its turn
 	// to publish an epoch to the caller via the resp channel. Every time seq is updated,
@@ -774,9 +782,10 @@ func (r *treeGeneratorImpl_v5) fetchEpochs(startEpoch uint64, endEpoch uint64, e
 		id := j
 		go func() {
 			// each worker will iterate modulo its id
-			for epoch := startEpoch + id; epoch < endEpoch+1; epoch += workers {
+			for epoch := startEpoch + id; epoch < endEpoch+2; epoch += workers {
 				// Fetch the duties and participation for a single epoch
-				es, err := r.fetchEpoch(true, epoch)
+				fetchDuties := epoch != endEpoch+1
+				es, err := r.fetchEpoch(fetchDuties, epoch)
 				if err != nil {
 					// Return the error to the caller
 					errChan <- err
@@ -803,12 +812,20 @@ func (r *treeGeneratorImpl_v5) fetchEpochs(startEpoch uint64, endEpoch uint64, e
 				}
 
 				// No error was encountered, and seq indicates it's this worker's turn
-				// to update the state, so process the epoch
-				r.processEpoch(es)
+				// to update the state, so process the epoch, but only its duties
+				r.processEpoch(&epochState{
+					epoch:      es.epoch,
+					committees: es.committees,
+				})
 
-				if epoch == endEpoch {
+				es.committees = nil
+				// Produce the attestations for the main thread to work on
+				attChan <- es
+
+				if epoch == endEpoch+1 {
 					// The last result has been produced, so close the channels
 					close(errChan)
+					close(attChan)
 					// This worker produced the last result, so
 					// signal to the other workers that it is time to exit
 					done = true
@@ -865,20 +882,33 @@ func (r *treeGeneratorImpl_v5) processAttestationsForInterval() error {
 	reportStartTime := time.Now()
 
 	// Start populating epochStates
-	r.fetchEpochs(startEpoch, endEpoch, errs, reportStartTime)
+	attChan := make(chan *epochState, 32)
+	r.fetchEpochs(startEpoch, endEpoch, errs, attChan, reportStartTime)
 
 	// Read until the error channel is closed
-	for err := range errs {
-		return err
-	}
+	for {
+		select {
+		case err, ok := <-errs:
+			if !ok {
+				errs = nil
+				break
+			}
+			return err
+		case es, ok := <-attChan:
+			if !ok {
+				attChan = nil
+				break
+			}
+			r.processEpoch(es)
+		}
 
-	// Check the epoch after the end of the interval for any lingering attestations
-	epoch := endEpoch + 1
-	es, err := r.fetchEpoch(false, epoch)
-	if err != nil {
-		return err
+		if attChan == nil && errs == nil {
+			break
+		}
 	}
-	r.processEpoch(es)
+	/*for err := range errs {
+		return err
+	}*/
 
 	r.log.Printlnf("%s Finished participation check (total time = %s)", r.logPrefix, time.Since(reportStartTime))
 	return nil
@@ -891,6 +921,10 @@ func (r *treeGeneratorImpl_v5) processEpoch(es *epochState) {
 	// Note: committees will be nil for the last epoch
 	if es.committees != nil {
 		r.getDutiesForEpoch(es.committees)
+	}
+
+	if es.attestations == nil {
+		return
 	}
 
 	// Process all of the slots in the epoch
@@ -923,23 +957,23 @@ func (r *treeGeneratorImpl_v5) fetchEpoch(getDuties bool, epoch uint64) (*epochS
 		})
 	}
 
-	wg.Go(func() error {
-		for i := uint64(0); i < r.slotsPerEpoch; i++ {
+	for i := uint64(0); i < r.slotsPerEpoch; i++ {
+		i := i
+		wg.Go(func() error {
 			slot := epoch*r.slotsPerEpoch + i
 			attestations, found, err := r.bc.GetAttestations(fmt.Sprint(slot))
 			if err != nil {
 				return err
 			}
 			if found {
-				//out.attestationsResponses[i] = attestations
 				out.attestations[i] = attestations
 			} else {
-				//out.attestationsResponses[i] = nil
 				out.attestations[i] = nil
 			}
-		}
-		return nil
-	})
+
+			return nil
+		})
+	}
 	err := wg.Wait()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting committee and attestaion records for epoch %d: %w", epoch, err)
@@ -951,40 +985,50 @@ func (r *treeGeneratorImpl_v5) fetchEpoch(getDuties bool, epoch uint64) (*epochS
 
 // Handle all of the attestations in the given slot
 func (r *treeGeneratorImpl_v5) checkDutiesForSlot(attestations []beacon.AttestationInfo, slot uint64) error {
-
-	one := eth.EthToWei(1)
-	validatorReq := eth.EthToWei(32)
+	minipoolScore := big.NewInt(0)
 
 	// Go through the attestations for the block
 	for _, attestation := range attestations {
-
-		// Get the RP committees for this attestation's slot and index
-		slotInfo, exists := r.intervalDutiesInfo.Slots[attestation.SlotIndex]
-		if !exists {
+		if attestation.SlotIndex < r.rewardsFile.ConsensusStartBlock || attestation.SlotIndex > r.rewardsFile.ConsensusEndBlock {
 			continue
 		}
 
+		// Get the RP committees for this attestation's slot and index
+		slotInfo := r.intervalDutiesInfo.Slots[attestation.SlotIndex-r.rewardsFile.ConsensusStartBlock]
+		if slotInfo == nil {
+			continue
+		}
+
+		slotInfo.lock.RLock()
 		rpCommittee, exists := slotInfo.Committees[attestation.CommitteeIndex]
 		if !exists {
+			slotInfo.lock.RUnlock()
 			continue
 		}
 		blockTime := time.Unix(int64(r.networkState.BeaconConfig.GenesisTime), 0).Add(time.Second * time.Duration(r.networkState.BeaconConfig.SecondsPerSlot*attestation.SlotIndex))
 
 		// Check if each RP validator attested successfully
-		for position, validator := range rpCommittee.Positions {
+		for i, committeeInfoPosition := range rpCommittee.Positions {
+			validator := committeeInfoPosition.Validator
+			position := committeeInfoPosition.Position
 			if !attestation.AggregationBits.BitAt(uint64(position)) {
 				continue
 			}
 			// This was seen, so remove it from the missing attestations and add it to the completed ones
-			delete(rpCommittee.Positions, position)
-			if len(rpCommittee.Positions) == 0 {
+			if len(rpCommittee.Positions) == i+1 {
+				slotInfo.lock.RUnlock()
+				slotInfo.lock.Lock()
 				delete(slotInfo.Committees, attestation.CommitteeIndex)
+				if len(slotInfo.Committees) == 0 {
+					r.intervalDutiesInfo.Slots[attestation.SlotIndex-r.rewardsFile.ConsensusStartBlock] = nil
+				}
+				slotInfo.lock.Unlock()
+				slotInfo.lock.RLock()
 			}
-			if len(slotInfo.Committees) == 0 {
-				delete(r.intervalDutiesInfo.Slots, attestation.SlotIndex)
-			}
-			validator.CompletedAttestations[attestation.SlotIndex] = true
+			validator.CompletedAttestations++
+			validator.lock.Lock()
 			delete(validator.MissingAttestationSlots, attestation.SlotIndex)
+			validator.lock.Unlock()
 
 			// Check if this minipool was opted into the SP for this block
 			nodeDetails := r.nodeDetails[validator.NodeIndex]
@@ -996,16 +1040,17 @@ func (r *treeGeneratorImpl_v5) checkDutiesForSlot(attestations []beacon.Attestat
 			// Get the pseudoscore for this attestation
 			details := r.networkState.MinipoolDetailsByAddress[validator.Address]
 			bond, fee := r.getMinipoolBondAndNodeFee(details, blockTime)
-			minipoolScore := big.NewInt(0).Sub(one, fee)   // 1 - fee
-			minipoolScore.Mul(minipoolScore, bond)         // Multiply by bond
-			minipoolScore.Div(minipoolScore, validatorReq) // Divide by 32 to get the bond as a fraction of a total validator
-			minipoolScore.Add(minipoolScore, fee)          // Total = fee + (bond/32)(1 - fee)
+			minipoolScore = minipoolScore.Sub(r.oneEth, fee) // 1 - fee
+			minipoolScore.Mul(minipoolScore, bond)           // Multiply by bond
+			minipoolScore.Div(minipoolScore, r.thirtyTwoEth) // Divide by 32 to get the bond as a fraction of a total validator
+			minipoolScore.Add(minipoolScore, fee)            // Total = fee + (bond/32)(1 - fee)
 
 			// Add it to the minipool's score and the total score
 			validator.AttestationScore.Add(validator.AttestationScore, minipoolScore)
 			r.totalAttestationScore.Add(r.totalAttestationScore, minipoolScore)
 			r.successfulAttestations++
 		}
+		slotInfo.lock.RUnlock()
 	}
 
 	return nil
@@ -1025,26 +1070,31 @@ func (r *treeGeneratorImpl_v5) getDutiesForEpoch(committees []beacon.Committee) 
 		committeeIndex := committee.Index
 
 		// Check if there are any RP validators in this committee
-		rpValidators := map[int]*MinipoolInfo{}
+		rpValidators := make([]CommitteeInfoPosition, 0, len(committee.Validators))
 		for position, validator := range committee.Validators {
 			minipoolInfo, exists := r.validatorIndexMap[validator]
 			if exists {
-				rpValidators[position] = minipoolInfo
+				rpValidators = append(rpValidators, CommitteeInfoPosition{
+					Position:  position,
+					Validator: minipoolInfo,
+				})
+				minipoolInfo.lock.Lock()
 				minipoolInfo.MissingAttestationSlots[slotIndex] = true
+				minipoolInfo.lock.Unlock()
 			}
 		}
 
 		// If there are some RP validators, add this committee to the map
 		if len(rpValidators) > 0 {
-			slotInfo, exists := r.intervalDutiesInfo.Slots[slotIndex]
-			if !exists {
-				slotInfo = &SlotInfo{
+			slotInfo := r.intervalDutiesInfo.Slots[slotIndex-r.rewardsFile.ConsensusStartBlock]
+			if slotInfo == nil {
+				slotInfo = &SlotInfoV5{
 					Index:      slotIndex,
-					Committees: map[uint64]*CommitteeInfo{},
+					Committees: map[uint64]*CommitteeInfoV5{},
 				}
-				r.intervalDutiesInfo.Slots[slotIndex] = slotInfo
+				r.intervalDutiesInfo.Slots[slotIndex-r.rewardsFile.ConsensusStartBlock] = slotInfo
 			}
-			slotInfo.Committees[committeeIndex] = &CommitteeInfo{
+			slotInfo.Committees[committeeIndex] = &CommitteeInfoV5{
 				Index:     committeeIndex,
 				Positions: rpValidators,
 			}
@@ -1182,7 +1232,7 @@ func (r *treeGeneratorImpl_v5) getSmoothingPoolNodeDetails() error {
 							//MissedAttestations:      0,
 							//GoodAttestations:        0,
 							MissingAttestationSlots: map[uint64]bool{},
-							CompletedAttestations:   map[uint64]bool{},
+							CompletedAttestations:   0,
 							WasActive:               true,
 							AttestationScore:        big.NewInt(0),
 						})
@@ -1278,23 +1328,22 @@ func (r *treeGeneratorImpl_v5) getStartBlocksForInterval(previousIntervalEvent r
 func (r *treeGeneratorImpl_v5) getMinipoolBondAndNodeFee(details *rpstate.NativeMinipoolDetails, blockTime time.Time) (*big.Int, *big.Int) {
 	currentBond := details.NodeDepositBalance
 	currentFee := details.NodeFee
-	previousBond := details.LastBondReductionPrevValue
-	previousFee := details.LastBondReductionPrevNodeFee
 
 	var reductionTimeBig *big.Int = details.LastBondReductionTime
 	if reductionTimeBig.Cmp(r.zero) == 0 {
 		// Never reduced
 		return currentBond, currentFee
-	} else {
-		reductionTime := time.Unix(reductionTimeBig.Int64(), 0)
-		if reductionTime.Sub(blockTime) > 0 {
-			// This block occurred before the reduction
-			if previousFee.Cmp(r.zero) == 0 {
-				// Catch for minipools that were created before this call existed
-				return previousBond, currentFee
-			}
-			return previousBond, previousFee
+	}
+	reductionTime := time.Unix(reductionTimeBig.Int64(), 0)
+	if reductionTime.Sub(blockTime) > 0 {
+		previousBond := details.LastBondReductionPrevValue
+		previousFee := details.LastBondReductionPrevNodeFee
+		// This block occurred before the reduction
+		if previousFee.Cmp(r.zero) == 0 {
+			// Catch for minipools that were created before this call existed
+			return previousBond, currentFee
 		}
+		return previousBond, previousFee
 	}
 
 	return currentBond, currentFee

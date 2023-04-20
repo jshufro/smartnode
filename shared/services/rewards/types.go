@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -41,7 +42,8 @@ type MinipoolInfo struct {
 	StartSlot               uint64
 	EndSlot                 uint64
 	AttestationScore        *big.Int
-	CompletedAttestations   map[uint64]bool
+	CompletedAttestations   uint64
+	lock                    sync.RWMutex
 }
 
 type IntervalDutiesInfo struct {
@@ -49,11 +51,31 @@ type IntervalDutiesInfo struct {
 	Slots map[uint64]*SlotInfo
 }
 
+type IntervalDutiesInfoV5 struct {
+	Index uint64
+	Slots []*SlotInfoV5
+}
+
 type SlotInfo struct {
 	Index      uint64
 	Committees map[uint64]*CommitteeInfo
 }
 
+type SlotInfoV5 struct {
+	lock       sync.RWMutex
+	Index      uint64
+	Committees map[uint64]*CommitteeInfoV5
+}
+
+type CommitteeInfoPosition struct {
+	Position  int
+	Validator *MinipoolInfo
+}
+
+type CommitteeInfoV5 struct {
+	Index     uint64
+	Positions []CommitteeInfoPosition
+}
 type CommitteeInfo struct {
 	Index     uint64
 	Positions map[int]*MinipoolInfo
