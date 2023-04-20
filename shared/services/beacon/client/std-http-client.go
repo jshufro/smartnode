@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -474,7 +473,7 @@ func (c *StandardHttpClient) GetEth1DataForEth2Block(blockId string) (beacon.Eth
 }
 
 type attestationsResponseRaw struct {
-	body    io.ReadCloser
+	body    []byte
 	version string
 }
 
@@ -492,70 +491,57 @@ func (c *StandardHttpClient) GetAttestationsRaw(blockId string) (*attestationsRe
 	if err != nil {
 		return nil, false, err
 	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, fmt.Errorf("Could not get attestations data for slot %s: HTTP status %d", blockId, resp.StatusCode)
+	}
 
 	if resp.StatusCode == http.StatusNotFound {
 		return nil, false, nil
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("Could not get attestations data for slot %s: HTTP status %d", blockId, resp.StatusCode)
+		return nil, false, fmt.Errorf("Could not get attestations data for slot %s: HTTP status %d; reponse body: '%s'", blockId, resp.StatusCode, string(body))
 	}
 
 	return &attestationsResponseRaw{
-		body:    resp.Body,
+		body:    body,
 		version: resp.Header.Get("Eth-Consensus-Version"),
 	}, true, nil
 }
 
-var attBufferPool sync.Pool = sync.Pool{}
-
 func (c *StandardHttpClient) ParseAttestationsResponseRaw(resp *attestationsResponseRaw) ([]beacon.AttestationInfo, error) {
 	var attestations []*gec.Attestation
-
-	defer resp.body.Close()
-	var b *bytes.Buffer
-	bAny := attBufferPool.Get()
-	if bAny == nil {
-		bSlice, err := io.ReadAll(resp.body)
-		if err != nil {
-			return nil, err
-		}
-		b = bytes.NewBuffer(bSlice)
-	} else {
-		b = bAny.(*bytes.Buffer)
-		_, err := io.Copy(b, resp.body)
-		if err != nil {
-			return nil, err
-		}
-	}
-	defer attBufferPool.Put(b)
-	defer b.Reset()
 
 	// Unmarshal block SSZ
 	if strings.EqualFold(resp.version, "phase0") {
 		block := new(gec.SignedBeaconBlockPhase0)
-		if err := block.UnmarshalSSZ(b.Bytes()); err != nil {
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
 
 		attestations = block.Block.Body.Attestations
 	} else if strings.EqualFold(resp.version, "altair") {
 		block := new(gec.SignedBeaconBlockAltair)
-		if err := block.UnmarshalSSZ(b.Bytes()); err != nil {
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
 
 		attestations = block.Block.Body.Attestations
 	} else if strings.EqualFold(resp.version, "bellatrix") {
 		block := new(gec.SignedBeaconBlockBellatrix)
-		if err := block.UnmarshalSSZ(b.Bytes()); err != nil {
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
 
 		attestations = block.Block.Body.Attestations
 	} else if strings.EqualFold(resp.version, "capella") {
 		block := new(gec.SignedBeaconBlockCapella)
-		if err := block.UnmarshalSSZ(b.Bytes()); err != nil {
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
 
@@ -633,8 +619,6 @@ func (c *StandardHttpClient) GetBeaconBlock(blockId string) (beacon.BeaconBlock,
 	return beaconBlock, true, nil
 }
 
-var protoBufferPool sync.Pool = sync.Pool{}
-
 func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) ([]beacon.Committee, error) {
 	query := ""
 	if epoch != nil {
@@ -645,47 +629,19 @@ func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) ([]beacon.Comm
 		return nil, fmt.Errorf("Could not get committees: %w", err)
 	}
 	if status != http.StatusOK {
-		return nil, fmt.Errorf("Could not get committees: HTTP status %d", status)
+		return nil, fmt.Errorf("Could not get committees: HTTP status %d; response body: '%s'", status, string(responseBody))
 	}
 
-	defer responseBody.Close()
-
-	var b *bytes.Buffer
-	bAny := protoBufferPool.Get()
-	if bAny == nil {
-		bSlice, err := io.ReadAll(responseBody)
-		if err != nil {
-			return nil, fmt.Errorf("Could not read committees http response")
-		}
-		b = bytes.NewBuffer(bSlice)
-	} else {
-		b = bAny.(*bytes.Buffer)
-		_, err := io.Copy(b, responseBody)
-		if err != nil {
-			return nil, fmt.Errorf("Could not read committees http response")
-		}
-	}
-
-	defer protoBufferPool.Put(b)
-	defer b.Reset()
-
-	m := pb.CommitteesResponse{
-		Data: make([]*pb.CommitteesResponseData, 32),
-	}
-	for i := 0; i < 32; i++ {
-		m.Data[i] = &pb.CommitteesResponseData{
-			Validators: make([]uint64, 0, 400000/32),
-		}
-	}
+	m := pb.CommitteesResponse{}
 	if header == nil || !strings.EqualFold(header.Get("Content-Type"), "application/protobuf") {
 		// Parse json
-		err := protojson.Unmarshal(b.Bytes(), &m)
+		err := protojson.Unmarshal(responseBody, &m)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// Parse proto
-		err = proto.Unmarshal(b.Bytes(), &m)
+		err = proto.Unmarshal(responseBody, &m)
 		if err != nil {
 			return nil, err
 		}
@@ -966,7 +922,7 @@ func (c *StandardHttpClient) postWithdrawalCredentialsChange(request BLSToExecut
 	return nil
 }
 
-func (c *StandardHttpClient) protoGetRequest(requestPath string) (io.ReadCloser, http.Header, int, error) {
+func (c *StandardHttpClient) protoGetRequest(requestPath string) ([]byte, http.Header, int, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf(RequestUrlFormat, c.providerAddress, requestPath), nil)
 	if err != nil {
 		return nil, nil, 0, err
@@ -977,7 +933,16 @@ func (c *StandardHttpClient) protoGetRequest(requestPath string) (io.ReadCloser,
 	if err != nil {
 		return nil, nil, 0, err
 	}
-	return response.Body, response.Header, response.StatusCode, nil
+	defer func() {
+		_ = response.Body.Close()
+	}()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+
+	return body, response.Header, response.StatusCode, nil
 }
 
 // Make a GET request to the beacon node
