@@ -983,6 +983,7 @@ func (r *treeGeneratorImpl_v5) checkDutiesForSlot(attestations []beacon.Attestat
 			if len(slotInfo.Committees) == 0 {
 				delete(r.intervalDutiesInfo.Slots, attestation.SlotIndex)
 			}
+			validator.CompletedAttestations[attestation.SlotIndex] = true
 			delete(validator.MissingAttestationSlots, attestation.SlotIndex)
 
 			// Check if this minipool was opted into the SP for this block
@@ -991,7 +992,6 @@ func (r *treeGeneratorImpl_v5) checkDutiesForSlot(attestations []beacon.Attestat
 				// Not opted in
 				continue
 			}
-			validator.CompletedAttestations[attestation.SlotIndex] = true
 
 			// Get the pseudoscore for this attestation
 			details := r.networkState.MinipoolDetailsByAddress[validator.Address]
@@ -1024,35 +1024,14 @@ func (r *treeGeneratorImpl_v5) getDutiesForEpoch(committees []beacon.Committee) 
 		}
 		committeeIndex := committee.Index
 
-		blockTime := time.Unix(int64(r.networkState.BeaconConfig.GenesisTime), 0).Add(time.Second * time.Duration(r.networkState.BeaconConfig.SecondsPerSlot*slotIndex))
-
 		// Check if there are any RP validators in this committee
 		rpValidators := map[int]*MinipoolInfo{}
 		for position, validator := range committee.Validators {
 			minipoolInfo, exists := r.validatorIndexMap[validator]
-			if !exists {
-				continue
+			if exists {
+				rpValidators[position] = minipoolInfo
+				minipoolInfo.MissingAttestationSlots[slotIndex] = true
 			}
-
-			// Check that the node was opted in at the time of the attestation
-			nodeInfo := r.nodeDetails[minipoolInfo.NodeIndex]
-			if nodeInfo == nil {
-				r.log.Printlnf("Minipool found (%d) with no corresponding node (%d)", minipoolInfo.ValidatorIndex, minipoolInfo.NodeIndex)
-				continue
-			}
-
-			// If it's opted out and before this slot, it's excused from its duties
-			if !nodeInfo.IsOptedIn && nodeInfo.OptOutTime.Before(blockTime) {
-				continue
-			}
-
-			// If it's opted in and after this slot, it's excused from its duties
-			if nodeInfo.IsOptedIn && blockTime.Before(nodeInfo.OptInTime) {
-				continue
-			}
-
-			rpValidators[position] = minipoolInfo
-			minipoolInfo.MissingAttestationSlots[slotIndex] = true
 		}
 
 		// If there are some RP validators, add this committee to the map
