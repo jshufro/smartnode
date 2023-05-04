@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -780,29 +781,56 @@ func (c *StandardHttpClient) getBeaconBlock(blockId string) (BeaconBlockResponse
 	return beaconBlock, true, nil
 }
 
+type committeesDecoder struct {
+	decoder *json.Decoder
+	buf     *bytes.Buffer
+}
+
+var committeesDecoderPool sync.Pool
+
 // Get the committees for the epoch
+// The responses are quite large, so we will copy them into reusable buffers before deserializing
 func (c *StandardHttpClient) getCommittees(stateId string, epoch *uint64) (CommitteesResponse, error) {
 	query := ""
 	if epoch != nil {
 		query = fmt.Sprintf("?epoch=%d", *epoch)
 	}
-	reader, status, err := c.getRequestReader(fmt.Sprintf(RequestCommitteePath, stateId) + query)
+	reader, contentLength, status, err := c.getRequestReader(fmt.Sprintf(RequestCommitteePath, stateId) + query)
 	if err != nil {
 		return CommitteesResponse{}, fmt.Errorf("Could not get committees: %w", err)
 	}
 	defer func() {
 		_ = reader.Close()
 	}()
+
 	if status != http.StatusOK {
 		body, _ := io.ReadAll(reader)
 		return CommitteesResponse{}, fmt.Errorf("Could not get committees: HTTP status %d; response body: '%s'", status, string(body))
 	}
 
+	poolDecoder := committeesDecoderPool.Get()
+	var dec *committeesDecoder
+	if poolDecoder == nil {
+		buf := bytes.NewBuffer(make([]byte, 0, contentLength))
+		dec = &committeesDecoder{
+			decoder: json.NewDecoder(buf),
+			buf:     buf,
+		}
+	} else {
+		dec = poolDecoder.(*committeesDecoder)
+	}
+	defer dec.buf.Reset()
+	defer committeesDecoderPool.Put(dec)
+
+	// Copy response body into decoder buffer
+	if _, err := dec.buf.ReadFrom(reader); err != nil {
+		return CommitteesResponse{}, fmt.Errorf("Error copying response body: %w", err)
+	}
+
 	var committees CommitteesResponse
 
-	decoder := json.NewDecoder(reader)
 	// Now parse the array
-	if err := decoder.Decode(&committees); err != nil {
+	if err := dec.decoder.Decode(&committees); err != nil {
 		return CommitteesResponse{}, fmt.Errorf("Could not decode committees: %w", err)
 	}
 	return committees, nil
@@ -822,22 +850,22 @@ func (c *StandardHttpClient) postWithdrawalCredentialsChange(request BLSToExecut
 }
 
 // Make a GET request but do not read it yet (allows buffered decoding)
-func (c *StandardHttpClient) getRequestReader(requestPath string) (io.ReadCloser, int, error) {
+func (c *StandardHttpClient) getRequestReader(requestPath string) (io.ReadCloser, int64, int, error) {
 
 	// Send request
 	response, err := http.Get(fmt.Sprintf(RequestUrlFormat, c.providerAddress, requestPath))
 	if err != nil {
-		return nil, 0, err
+		return nil, 01, 0, err
 	}
 
-	return response.Body, response.StatusCode, nil
+	return response.Body, response.ContentLength, response.StatusCode, nil
 }
 
 // Make a GET request to the beacon node
 func (c *StandardHttpClient) getRequest(requestPath string) ([]byte, int, error) {
 
 	// Send request
-	reader, status, err := c.getRequestReader(requestPath)
+	reader, _, status, err := c.getRequestReader(requestPath)
 	if err != nil {
 		return []byte{}, 0, err
 	}

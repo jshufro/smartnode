@@ -70,6 +70,7 @@ type Committees interface {
 	Slot(int) uint64
 	Validators(int) []string
 	Count() int
+	Release()
 }
 
 type AttestationInfo struct {

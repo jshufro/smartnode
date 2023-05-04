@@ -2,7 +2,9 @@ package client
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strconv"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/goccy/go-json"
@@ -143,6 +145,45 @@ type Committee struct {
 	validators []string `json:"validators"`
 }
 
+// Custom deserialization logic for Committee allows us to pool the validator
+// slices for reuse. They're quite large, so this cuts down on allocations
+// substantially.
+var validatorSlicePool sync.Pool
+
+func (c *Committee) UnmarshalJSON(body []byte) error {
+	var committee map[string]*json.RawMessage
+	var slice []string
+	var ok bool
+
+	pooled := validatorSlicePool.Get()
+	if pooled == nil {
+		slice = make([]string, 0, 1024)
+	} else {
+		slice, ok = pooled.([]string)
+		if !ok {
+			return fmt.Errorf("error getting reusable buffer from validatorSlicePool")
+		}
+	}
+
+	c.validators = slice
+
+	if err := json.Unmarshal(body, &committee); err != nil {
+		return fmt.Errorf("error unmarshalling committee json: %w\n", err)
+	}
+
+	// unmarshal fields
+	if err := json.Unmarshal(*committee["index"], &c.index); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(*committee["slot"], &c.slot); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(*committee["validators"], &c.validators); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *CommitteesResponse) Count() int {
 	return len(c.Data)
 }
@@ -157,6 +198,12 @@ func (c *CommitteesResponse) Slot(idx int) uint64 {
 
 func (c *CommitteesResponse) Validators(idx int) []string {
 	return c.Data[idx].validators
+}
+
+func (c *CommitteesResponse) Release() {
+	for _, committee := range c.Data {
+		validatorSlicePool.Put(committee.validators)
+	}
 }
 
 type Attestation struct {
