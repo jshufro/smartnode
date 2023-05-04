@@ -65,10 +65,11 @@ type BeaconBlock struct {
 	ExecutionBlockNumber uint64
 }
 
-type Committee struct {
-	Index      uint64
-	Slot       uint64
-	Validators []string
+type Committees interface {
+	Index(int) uint64
+	Slot(int) uint64
+	Validators(int) []string
+	Count() int
 }
 
 type AttestationInfo struct {
@@ -128,6 +129,6 @@ type Client interface {
 	ExitValidator(validatorIndex string, epoch uint64, signature types.ValidatorSignature) error
 	Close() error
 	GetEth1DataForEth2Block(blockId string) (Eth1Data, bool, error)
-	GetCommitteesForEpoch(epoch *uint64) ([]Committee, error)
+	GetCommitteesForEpoch(epoch *uint64) (Committees, error)
 	ChangeWithdrawalCredentials(validatorIndex string, fromBlsPubkey types.ValidatorPubkey, toExecutionAddress common.Address, signature types.ValidatorSignature) error
 }

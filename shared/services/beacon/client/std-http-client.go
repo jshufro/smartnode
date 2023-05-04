@@ -526,22 +526,13 @@ func (c *StandardHttpClient) GetBeaconBlock(blockId string) (beacon.BeaconBlock,
 }
 
 // Get the attestation committees for the given epoch, or the current epoch if nil
-func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) ([]beacon.Committee, error) {
+func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) (beacon.Committees, error) {
 	response, err := c.getCommittees("head", epoch)
 	if err != nil {
 		return nil, err
 	}
 
-	committees := []beacon.Committee{}
-	for _, committee := range response.Data {
-		committees = append(committees, beacon.Committee{
-			Index:      uint64(committee.Index),
-			Slot:       uint64(committee.Slot),
-			Validators: committee.Validators,
-		})
-	}
-
-	return committees, nil
+	return &response, nil
 }
 
 // Perform a withdrawal credentials change on a validator
@@ -795,15 +786,23 @@ func (c *StandardHttpClient) getCommittees(stateId string, epoch *uint64) (Commi
 	if epoch != nil {
 		query = fmt.Sprintf("?epoch=%d", *epoch)
 	}
-	responseBody, status, err := c.getRequest(fmt.Sprintf(RequestCommitteePath, stateId) + query)
+	reader, status, err := c.getRequestReader(fmt.Sprintf(RequestCommitteePath, stateId) + query)
 	if err != nil {
 		return CommitteesResponse{}, fmt.Errorf("Could not get committees: %w", err)
 	}
+	defer func() {
+		_ = reader.Close()
+	}()
 	if status != http.StatusOK {
-		return CommitteesResponse{}, fmt.Errorf("Could not get committees: HTTP status %d; response body: '%s'", status, string(responseBody))
+		body, _ := io.ReadAll(reader)
+		return CommitteesResponse{}, fmt.Errorf("Could not get committees: HTTP status %d; response body: '%s'", status, string(body))
 	}
+
 	var committees CommitteesResponse
-	if err := json.Unmarshal(responseBody, &committees); err != nil {
+
+	decoder := json.NewDecoder(reader)
+	// Now parse the array
+	if err := decoder.Decode(&committees); err != nil {
 		return CommitteesResponse{}, fmt.Errorf("Could not decode committees: %w", err)
 	}
 	return committees, nil
@@ -822,27 +821,38 @@ func (c *StandardHttpClient) postWithdrawalCredentialsChange(request BLSToExecut
 	return nil
 }
 
-// Make a GET request to the beacon node
-func (c *StandardHttpClient) getRequest(requestPath string) ([]byte, int, error) {
+// Make a GET request but do not read it yet (allows buffered decoding)
+func (c *StandardHttpClient) getRequestReader(requestPath string) (io.ReadCloser, int, error) {
 
 	// Send request
 	response, err := http.Get(fmt.Sprintf(RequestUrlFormat, c.providerAddress, requestPath))
 	if err != nil {
+		return nil, 0, err
+	}
+
+	return response.Body, response.StatusCode, nil
+}
+
+// Make a GET request to the beacon node
+func (c *StandardHttpClient) getRequest(requestPath string) ([]byte, int, error) {
+
+	// Send request
+	reader, status, err := c.getRequestReader(requestPath)
+	if err != nil {
 		return []byte{}, 0, err
 	}
 	defer func() {
-		_ = response.Body.Close()
+		_ = reader.Close()
 	}()
 
 	// Get response
-	body, err := io.ReadAll(response.Body)
+	body, err := io.ReadAll(reader)
 	if err != nil {
 		return []byte{}, 0, err
 	}
 
 	// Return
-	return body, response.StatusCode, nil
-
+	return body, status, nil
 }
 
 // Make a POST request to the beacon node

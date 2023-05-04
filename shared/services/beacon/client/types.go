@@ -138,9 +138,25 @@ type CommitteesResponse struct {
 }
 
 type Committee struct {
-	Index      uinteger `json:"index"`
-	Slot       uinteger `json:"slot"`
-	Validators []string `json:"validators"`
+	index      uinteger `json:"index"`
+	slot       uinteger `json:"slot"`
+	validators []string `json:"validators"`
+}
+
+func (c *CommitteesResponse) Count() int {
+	return len(c.Data)
+}
+
+func (c *CommitteesResponse) Index(idx int) uint64 {
+	return uint64(c.Data[idx].index)
+}
+
+func (c *CommitteesResponse) Slot(idx int) uint64 {
+	return uint64(c.Data[idx].slot)
+}
+
+func (c *CommitteesResponse) Validators(idx int) []string {
+	return c.Data[idx].validators
 }
 
 type Attestation struct {
