@@ -520,7 +520,8 @@ func (t *submitRewardsTree_Stateless) getSnapshotConsensusBlock(endTime time.Tim
 	targetSlot := uint64(math.Ceil(totalTimespan.Seconds() / float64(eth2Config.SecondsPerSlot)))
 	targetSlotEpoch := targetSlot / eth2Config.SlotsPerEpoch
 	targetSlot = targetSlotEpoch*eth2Config.SlotsPerEpoch + (eth2Config.SlotsPerEpoch - 1) // The target slot becomes the last one in the Epoch
-	requiredEpoch := targetSlotEpoch + 1                                                   // The smoothing pool requires 1 epoch beyond the target to be finalized, to check for late attestations
+	// XXX Jacob, you changed this from targetSlotEpoch + 1 so we start generating when the subsequent epoch justifies instead
+	requiredEpoch := targetSlotEpoch // The smoothing pool requires 1 epoch beyond the target to be finalized, to check for late attestations
 
 	// Check if the required epoch is finalized yet
 	if beaconHead.FinalizedEpoch < requiredEpoch {
