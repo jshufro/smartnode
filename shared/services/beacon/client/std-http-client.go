@@ -612,7 +612,31 @@ func (c *StandardHttpClient) GetBeaconBlock(blockId string) (beacon.BeaconBlock,
 	return beaconBlock, true, nil
 }
 
-func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) ([]beacon.Committee, error) {
+type committeeWrapper struct {
+	resp *pb.CommitteesResponse
+}
+
+func (w *committeeWrapper) Count() int {
+	return len(w.resp.Data)
+}
+
+func (w *committeeWrapper) Index(i int) uint64 {
+	return w.resp.Data[i].Index
+}
+
+func (w *committeeWrapper) Slot(i int) uint64 {
+	return w.resp.Data[i].Slot
+}
+
+func (w *committeeWrapper) Validators(i int) []uint64 {
+	return w.resp.Data[i].Validators
+}
+
+func (w *committeeWrapper) Release() {
+
+}
+
+func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) (beacon.Committees, error) {
 	query := ""
 	if epoch != nil {
 		query = fmt.Sprintf("?epoch=%d", *epoch)
@@ -640,21 +664,26 @@ func (c *StandardHttpClient) GetCommitteesForEpoch(epoch *uint64) ([]beacon.Comm
 		}
 	}
 
-	out := make([]beacon.Committee, len(m.Data))
-	for i, committee := range m.Data {
-		validators := make([]uint64, len(committee.Validators))
-
-		for j, validator := range committee.Validators {
-			validators[j] = uint64(validator)
-		}
-		out[i] = beacon.Committee{
-			Index:      uint64(committee.Index),
-			Slot:       uint64(committee.Slot),
-			Validators: validators,
-		}
+	out := committeeWrapper{
+		resp: &m,
 	}
 
-	return out, nil
+	/*
+		out := make(beacon.Committees, len(m.Data))
+		for i, committee := range m.Data {
+			validators := make([]uint64, len(committee.Validators))
+
+			for j, validator := range committee.Validators {
+				validators[j] = uint64(validator)
+			}
+			out[i] = beacon.Committee{
+				Index:      uint64(committee.Index),
+				Slot:       uint64(committee.Slot),
+				Validators: validators,
+			}
+		}*/
+
+	return &out, nil
 }
 
 // Perform a withdrawal credentials change on a validator
@@ -939,7 +968,7 @@ func (c *StandardHttpClient) protoGetRequest(requestPath string) ([]byte, http.H
 }
 
 // Make a GET request to the beacon node
-func (c *StandardHttpClient) getRequest(requestPath string) ([]byte, int, error) {
+func (c *StandardHttpClient) getRequestReader(requestPath string) (io.ReadCloser, int, error) {
 
 	// Send request
 	response, err := http.Get(fmt.Sprintf(RequestUrlFormat, c.providerAddress, requestPath))

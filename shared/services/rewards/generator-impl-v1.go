@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -44,7 +45,7 @@ type treeGeneratorImpl_v1 struct {
 	smoothingPoolAddress common.Address
 	intervalDutiesInfo   *IntervalDutiesInfo
 	slotsPerEpoch        uint64
-	validatorIndexMap    map[string]*MinipoolInfo
+	validatorIndexMap    map[uint64]*MinipoolInfo
 	elStartTime          time.Time
 	elEndTime            time.Time
 	validNetworkCache    map[uint64]bool
@@ -1000,7 +1001,7 @@ func (r *treeGeneratorImpl_v1) createMinipoolIndexMap() error {
 	}
 
 	// Get indices for all minipool validators
-	r.validatorIndexMap = map[string]*MinipoolInfo{}
+	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
 	statusMap, err := r.bc.GetValidatorStatuses(minipoolPubkeys, &beacon.ValidatorStatusOptions{
 		Slot: &r.rewardsFile.ConsensusEndBlock,
 	})
@@ -1011,7 +1012,11 @@ func (r *treeGeneratorImpl_v1) createMinipoolIndexMap() error {
 		if details.IsEligible {
 			for _, minipoolInfo := range details.Minipools {
 				minipoolInfo.ValidatorIndex = statusMap[minipoolInfo.ValidatorPubkey].Index
-				r.validatorIndexMap[minipoolInfo.ValidatorIndex] = minipoolInfo
+				idx, err := strconv.ParseUint(minipoolInfo.ValidatorIndex, 10, 64)
+				if err != nil {
+					idx = 0
+				}
+				r.validatorIndexMap[idx] = minipoolInfo
 			}
 		}
 	}

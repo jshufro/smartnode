@@ -79,7 +79,7 @@ type Committees interface {
 	Slot(int) uint64
 	// Validators returns the list of validators of the committee at
 	// the provided offset
-	Validators(int) []string
+	Validators(int) []uint64
 	// Count returns the number of committees in the response
 	Count() int
 	// Release returns the reused validators slice buffer to the pool for
