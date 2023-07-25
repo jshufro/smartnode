@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -38,7 +39,7 @@ type treeGeneratorImpl_v7 struct {
 	smoothingPoolBalance   *big.Int
 	intervalDutiesInfo     *IntervalDutiesInfo
 	slotsPerEpoch          uint64
-	validatorIndexMap      map[string]*MinipoolInfo
+	validatorIndexMap      map[uint64]*MinipoolInfo
 	elStartTime            time.Time
 	elEndTime              time.Time
 	validNetworkCache      map[uint64]bool
@@ -86,7 +87,7 @@ func newTreeGeneratorImpl_v7(log *log.ColorLogger, logPrefix string, index uint6
 			},
 		},
 		validatorStatusMap:    map[rptypes.ValidatorPubkey]beacon.ValidatorStatus{},
-		validatorIndexMap:     map[string]*MinipoolInfo{},
+		validatorIndexMap:     map[uint64]*MinipoolInfo{},
 		elSnapshotHeader:      elSnapshotHeader,
 		log:                   log,
 		logPrefix:             logPrefix,
@@ -894,7 +895,7 @@ func (r *treeGeneratorImpl_v7) getDutiesForEpoch(committees beacon.Committees) e
 func (r *treeGeneratorImpl_v7) createMinipoolIndexMap() error {
 
 	// Get the status for all uncached minipool validators and add them to the cache
-	r.validatorIndexMap = map[string]*MinipoolInfo{}
+	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
 	for _, details := range r.nodeDetails {
 		if details.IsEligible {
 			for _, minipoolInfo := range details.Minipools {
@@ -912,7 +913,11 @@ func (r *treeGeneratorImpl_v7) createMinipoolIndexMap() error {
 					default:
 						// Get the validator index
 						minipoolInfo.ValidatorIndex = status.Index
-						r.validatorIndexMap[minipoolInfo.ValidatorIndex] = minipoolInfo
+						vIdx, err := strconv.ParseUint(minipoolInfo.ValidatorIndex, 10, 64)
+						if err != nil {
+							vIdx = 0
+						}
+						r.validatorIndexMap[vIdx] = minipoolInfo
 
 						// Get the validator's activation start and end slots
 						startSlot := status.ActivationEpoch * r.beaconConfig.SlotsPerEpoch

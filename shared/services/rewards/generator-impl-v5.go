@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -44,7 +45,7 @@ type treeGeneratorImpl_v5 struct {
 	smoothingPoolAddress   common.Address
 	intervalDutiesInfo     *IntervalDutiesInfo
 	slotsPerEpoch          uint64
-	validatorIndexMap      map[string]*MinipoolInfo
+	validatorIndexMap      map[uint64]*MinipoolInfo
 	elStartTime            time.Time
 	elEndTime              time.Time
 	validNetworkCache      map[uint64]bool
@@ -99,7 +100,7 @@ func newTreeGeneratorImpl_v5(log *log.ColorLogger, logPrefix string, index uint6
 			},
 		},
 		validatorStatusMap:    map[rptypes.ValidatorPubkey]beacon.ValidatorStatus{},
-		validatorIndexMap:     map[string]*MinipoolInfo{},
+		validatorIndexMap:     map[uint64]*MinipoolInfo{},
 		elSnapshotHeader:      elSnapshotHeader,
 		log:                   log,
 		logPrefix:             logPrefix,
@@ -984,7 +985,7 @@ func (r *treeGeneratorImpl_v5) getDutiesForEpoch(committees beacon.Committees) {
 func (r *treeGeneratorImpl_v5) createMinipoolIndexMap() error {
 
 	// Get the status for all uncached minipool validators and add them to the cache
-	r.validatorIndexMap = map[string]*MinipoolInfo{}
+	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
 	for _, details := range r.nodeDetails {
 		if details.IsEligible {
 			for _, minipoolInfo := range details.Minipools {
@@ -994,6 +995,10 @@ func (r *treeGeneratorImpl_v5) createMinipoolIndexMap() error {
 					r.log.Printlnf("NOTE: minipool %s (pubkey %s) didn't exist at this slot; removing it", minipoolInfo.Address.Hex(), minipoolInfo.ValidatorPubkey.Hex())
 					minipoolInfo.WasActive = false
 				} else {
+					idx, err := strconv.ParseUint(status.Index, 10, 64)
+					if err != nil {
+						idx = 0
+					}
 					switch status.Status {
 					case beacon.ValidatorState_PendingInitialized, beacon.ValidatorState_PendingQueued:
 						// Remove minipools that don't have indices yet since they're not actually viable
@@ -1002,7 +1007,7 @@ func (r *treeGeneratorImpl_v5) createMinipoolIndexMap() error {
 					default:
 						// Get the validator index
 						minipoolInfo.ValidatorIndex = status.Index
-						r.validatorIndexMap[minipoolInfo.ValidatorIndex] = minipoolInfo
+						r.validatorIndexMap[idx] = minipoolInfo
 
 						// Get the validator's activation start and end slots
 						startSlot := status.ActivationEpoch * r.beaconConfig.SlotsPerEpoch

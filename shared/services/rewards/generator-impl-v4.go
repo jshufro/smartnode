@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -43,7 +44,7 @@ type treeGeneratorImpl_v4 struct {
 	smoothingPoolAddress   common.Address
 	intervalDutiesInfo     *IntervalDutiesInfo
 	slotsPerEpoch          uint64
-	validatorIndexMap      map[string]*MinipoolInfo
+	validatorIndexMap      map[uint64]*MinipoolInfo
 	elStartTime            time.Time
 	elEndTime              time.Time
 	validNetworkCache      map[uint64]bool
@@ -1000,7 +1001,7 @@ func (r *treeGeneratorImpl_v4) createMinipoolIndexMap() error {
 	}
 
 	// Get the status for all uncached minipool validators and add them to the cache
-	r.validatorIndexMap = map[string]*MinipoolInfo{}
+	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
 	statusMap, err := r.bc.GetValidatorStatuses(uncachedMinipoolPubkeys, &beacon.ValidatorStatusOptions{
 		Slot: &r.rewardsFile.ConsensusEndBlock,
 	})
@@ -1023,6 +1024,10 @@ func (r *treeGeneratorImpl_v4) createMinipoolIndexMap() error {
 					minipoolInfo.EndSlot = 0
 					minipoolInfo.WasActive = false
 				} else {
+					idx, err := strconv.ParseUint(status.Index, 10, 64)
+					if err != nil {
+						idx = 0
+					}
 					switch status.Status {
 					case beacon.ValidatorState_PendingInitialized, beacon.ValidatorState_PendingQueued:
 						// Remove minipools that don't have indices yet since they're not actually viable
@@ -1033,7 +1038,7 @@ func (r *treeGeneratorImpl_v4) createMinipoolIndexMap() error {
 					default:
 						// Get the validator index
 						minipoolInfo.ValidatorIndex = statusMap[minipoolInfo.ValidatorPubkey].Index
-						r.validatorIndexMap[minipoolInfo.ValidatorIndex] = minipoolInfo
+						r.validatorIndexMap[idx] = minipoolInfo
 
 						// Get the validator's activation start and end slots
 						startSlot := status.ActivationEpoch * r.beaconConfig.SlotsPerEpoch
@@ -1397,7 +1402,7 @@ func (r *treeGeneratorImpl_v4) getNodeEffectiveRPLStakes() ([]*big.Int, error) {
 
 	// Get the status for all staking minipool validators
 	r.log.Printlnf("%s Getting validator statuses for all eligible minipools", r.logPrefix)
-	r.validatorIndexMap = map[string]*MinipoolInfo{}
+	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
 	statusMap, err := r.bc.GetValidatorStatuses(r.stakingMinipoolPubkeys, &beacon.ValidatorStatusOptions{
 		Slot: &r.rewardsFile.ConsensusEndBlock,
 	})
