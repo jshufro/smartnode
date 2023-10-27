@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"time"
 
@@ -373,19 +374,55 @@ func (s *NetworkState) CalculateTrueEffectiveStakes(scaleByParticipation bool, a
 			minCollateral := big.NewInt(0).Mul(eligibleBorrowedEth, s.NetworkDetails.MinCollateralFraction)
 			minCollateral.Div(minCollateral, s.NetworkDetails.RplPrice)
 
-			// maxCollateral := bondedEth * maxCollateralFraction / ratio
-			// NOTE: maxCollateralFraction and ratio are both percentages, but multiplying and dividing by them cancels out the need for normalization by eth.EthToWei(1)
-			maxCollateral := big.NewInt(0).Mul(eligibleBondedEth, s.NetworkDetails.MaxCollateralFraction)
-			maxCollateral.Div(maxCollateral, s.NetworkDetails.RplPrice)
-
 			// Calculate the effective stake
 			nodeStake := big.NewInt(0).Set(node.RplStake)
-			if nodeStake.Cmp(minCollateral) == -1 {
+			if nodeStake.Cmp(minCollateral) == -1 || eligibleBorrowedEth.Cmp(big.NewInt(0)) == 0 {
 				// Under min collateral
 				nodeStake.SetUint64(0)
-			} else if nodeStake.Cmp(maxCollateral) == 1 {
-				// Over max collateral
-				nodeStake.Set(maxCollateral)
+			} else {
+				// Calculate a few terms.
+				stakedRplValueInEth := big.NewInt(0).Mul(nodeStake, s.NetworkDetails.RplPrice)
+				stakedRplValueInEth.Div(stakedRplValueInEth, big.NewInt(1e18))
+
+				// If between (inclusive 0.1 and 0.15, weight is just 100 * staked_rpl_value_in_eth
+				// we already know we're above 10% of borrowed.
+				midCollateral := big.NewInt(0).Mul(eligibleBorrowedEth, big.NewInt(150000000000000000))
+				midCollateral.Div(midCollateral, s.NetworkDetails.RplPrice)
+
+				var weight *big.Float
+				if nodeStake.Cmp(midCollateral) <= 0 {
+					weight = big.NewFloat(0).Mul(big.NewFloat(100), big.NewFloat(0).SetInt(stakedRplValueInEth))
+				} else {
+					lnArgs, _ :=
+						big.NewFloat(0).Sub(
+							big.NewFloat(0).Mul(
+								big.NewFloat(100.0),
+								big.NewFloat(0).Quo(
+									big.NewFloat(0.0).SetInt(stakedRplValueInEth),
+									big.NewFloat(0.0).SetInt(eligibleBorrowedEth),
+								),
+							),
+							big.NewFloat(13.0),
+						).Float64()
+					weight = big.NewFloat(0).Mul(
+						big.NewFloat(0).Add(
+							big.NewFloat(13.6137),
+							big.NewFloat(0).Mul(
+								big.NewFloat(2.0),
+								big.NewFloat(math.Log(lnArgs)),
+							),
+						),
+						big.NewFloat(0).SetInt(eligibleBorrowedEth),
+					)
+				}
+
+				approx, _ := weight.Float64()
+				if math.IsNaN(approx) {
+					nodeStake.SetUint64(0)
+				} else {
+					integered, _ := weight.Int(nil)
+					nodeStake.Set(integered)
+				}
 			}
 
 			// Scale the effective stake by the participation in the current interval
