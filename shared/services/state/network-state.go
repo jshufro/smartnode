@@ -338,7 +338,8 @@ func (s *NetworkState) CalculateTrueEffectiveStakes(scaleByParticipation bool, a
 		node := node
 		wg.Go(func() error {
 			eligibleBorrowedEth := big.NewInt(0)
-			eligibleBondedEth := big.NewInt(0)
+			eb16s := 0
+			eb8s := 0
 			for _, mpd := range s.MinipoolDetailsByNode[node.NodeAddress] {
 				// It must exist and be staking
 				if mpd.Exists && mpd.Status == types.Staking {
@@ -365,7 +366,13 @@ func (s *NetworkState) CalculateTrueEffectiveStakes(scaleByParticipation bool, a
 					}
 					// It's eligible, so add up the borrowed and bonded amounts
 					eligibleBorrowedEth.Add(eligibleBorrowedEth, mpd.UserDepositBalance)
-					eligibleBondedEth.Add(eligibleBondedEth, mpd.NodeDepositBalance)
+
+					if mpd.NodeDepositBalance.Cmp(eth.EthToWei(8)) == 0 {
+						eb8s++
+					} else if mpd.NodeDepositBalance.Cmp(eth.EthToWei(16)) == 0 {
+						eb16s++
+					}
+
 				}
 			}
 
@@ -383,6 +390,28 @@ func (s *NetworkState) CalculateTrueEffectiveStakes(scaleByParticipation bool, a
 				// Calculate a few terms.
 				stakedRplValueInEth := big.NewInt(0).Mul(nodeStake, s.NetworkDetails.RplPrice)
 				stakedRplValueInEth.Div(stakedRplValueInEth, big.NewInt(1e18))
+
+				// Adjust eligibleBorrowedEth to find the hypothetical borrowed eth
+				// assuming that all eb16 minipools will be migrated to leb8s should there be enough
+				// collateral available to do so.
+
+				// How much additional eth can be borrowed by bond reduction?
+				// Each eb16 can be converted into 2 leb8s. That converts 16 borrowed into 48 borrowed, net
+				// difference of 32.
+				maxReductionBorrow := big.NewInt(0).Mul(big.NewInt(int64(eb16s)), eth.EthToWei(32))
+				maxReductionBorrow.Add(maxReductionBorrow, eligibleBorrowedEth)
+
+				// How much additional borrowing can we do based on our rpl stake?
+				// The limit is rpl_stake_in_eth * 10
+				maxBorrow := big.NewInt(0).Mul(stakedRplValueInEth, big.NewInt(10))
+				// We can only borrow in 8 eth increments so divmul
+				maxBorrow.Mul(maxBorrow.Div(maxBorrow, eth.EthToWei(8)), eth.EthToWei(8))
+				// Take the lower of the two numbers and use it as our eligibleBorrowedEth
+				if maxBorrow.Cmp(maxReductionBorrow) > 0 {
+					eligibleBorrowedEth.Set(maxReductionBorrow)
+				} else {
+					eligibleBorrowedEth.Set(maxBorrow)
+				}
 
 				// If between (inclusive 0.1 and 0.15, weight is just 100 * staked_rpl_value_in_eth
 				// we already know we're above 10% of borrowed.
