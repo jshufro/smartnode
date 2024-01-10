@@ -4,7 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
+	"runtime/pprof"
 	"sort"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -40,7 +44,7 @@ type treeGeneratorImpl_v8 struct {
 	smoothingPoolBalance   *big.Int
 	intervalDutiesInfo     *IntervalDutiesInfo
 	slotsPerEpoch          uint64
-	validatorIndexMap      map[string]*MinipoolInfo
+	validatorIndexMap      map[uint64]*MinipoolInfo
 	elStartTime            time.Time
 	elEndTime              time.Time
 	validNetworkCache      map[uint64]bool
@@ -88,7 +92,7 @@ func newTreeGeneratorImpl_v8(log *log.ColorLogger, logPrefix string, index uint6
 			},
 		},
 		validatorStatusMap:    map[rptypes.ValidatorPubkey]beacon.ValidatorStatus{},
-		validatorIndexMap:     map[string]*MinipoolInfo{},
+		validatorIndexMap:     map[uint64]*MinipoolInfo{},
 		elSnapshotHeader:      elSnapshotHeader,
 		log:                   log,
 		logPrefix:             logPrefix,
@@ -727,6 +731,14 @@ func (r *treeGeneratorImpl_v8) calculateNodeRewards() (*big.Int, *big.Int, error
 
 // Get all of the duties for a range of epochs
 func (r *treeGeneratorImpl_v8) processAttestationsForInterval() error {
+	if os.Getenv("DUTIES_PPROF") != "" {
+		f, err := os.Create(os.Getenv("DUTIES_PPROF"))
+		if err != nil {
+			return err
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	startEpoch := r.rewardsFile.ConsensusStartBlock / r.beaconConfig.SlotsPerEpoch
 	endEpoch := r.rewardsFile.ConsensusEndBlock / r.beaconConfig.SlotsPerEpoch
@@ -741,29 +753,26 @@ func (r *treeGeneratorImpl_v8) processAttestationsForInterval() error {
 	r.log.Printlnf("%s Checking participation of %d minipools for epochs %d to %d", r.logPrefix, len(r.validatorIndexMap), startEpoch, endEpoch)
 	r.log.Printlnf("%s NOTE: this will take a long time, progress is reported every 100 epochs", r.logPrefix)
 
-	epochsDone := 0
+	// Workers need a channel to send back errors
+	errs := make(chan error)
+
 	reportStartTime := time.Now()
-	for epoch := startEpoch; epoch < endEpoch+1; epoch++ {
-		if epochsDone == 100 {
-			timeTaken := time.Since(reportStartTime)
-			r.log.Printlnf("%s On Epoch %d of %d (%.2f%%)... (%s so far)", r.logPrefix, epoch, endEpoch, float64(epoch-startEpoch)/float64(endEpoch-startEpoch)*100.0, timeTaken)
-			epochsDone = 0
-		}
 
-		err := r.processEpoch(true, epoch)
-		if err != nil {
-			return err
-		}
+	// Start populating epochStates
+	r.fetchEpochs(startEpoch, endEpoch, errs, reportStartTime)
 
-		epochsDone++
+	// Read until the error channel is closed
+	for err := range errs {
+		return err
 	}
 
 	// Check the epoch after the end of the interval for any lingering attestations
 	epoch := endEpoch + 1
-	err = r.processEpoch(false, epoch)
+	es, err := r.fetchEpoch(false, epoch)
 	if err != nil {
 		return err
 	}
+	r.processEpoch(es)
 
 	r.log.Printlnf("%s Finished participation check (total time = %s)", r.logPrefix, time.Since(reportStartTime))
 	return nil
@@ -771,60 +780,155 @@ func (r *treeGeneratorImpl_v8) processAttestationsForInterval() error {
 }
 
 // Process an epoch, optionally getting the duties for all eligible minipools in it and checking each one's attestation performance
-func (r *treeGeneratorImpl_v8) processEpoch(getDuties bool, epoch uint64) error {
+func (r *treeGeneratorImpl_v8) fetchEpoch(getDuties bool, epoch uint64) (*epochState, error) {
 
 	// Get the committee info and attestation records for this epoch
-	var committeeData beacon.Committees
-	attestationsPerSlot := make([][]beacon.AttestationInfo, r.slotsPerEpoch)
+	out := &epochState{
+		epoch:        epoch,
+		attestations: make([][]beacon.AttestationInfo, r.slotsPerEpoch),
+	}
 	var wg errgroup.Group
 
 	if getDuties {
 		wg.Go(func() error {
 			var err error
-			committeeData, err = r.bc.GetCommitteesForEpoch(&epoch)
+			out.committees, err = r.bc.GetCommitteesForEpoch(&epoch)
 			return err
 		})
 	}
 
-	for i := uint64(0); i < r.slotsPerEpoch; i++ {
-		i := i
-		slot := epoch*r.slotsPerEpoch + i
-		wg.Go(func() error {
+	wg.Go(func() error {
+		for i := uint64(0); i < r.slotsPerEpoch; i++ {
+			slot := epoch*r.slotsPerEpoch + i
 			attestations, found, err := r.bc.GetAttestations(fmt.Sprint(slot))
 			if err != nil {
 				return err
 			}
 			if found {
-				attestationsPerSlot[i] = attestations
+				//out.attestationsResponses[i] = attestations
+				out.attestations[i] = attestations
 			} else {
-				attestationsPerSlot[i] = []beacon.AttestationInfo{}
+				//out.attestationsResponses[i] = nil
+				out.attestations[i] = nil
 			}
-			return nil
-		})
-	}
+		}
+		return nil
+	})
 	err := wg.Wait()
 	if err != nil {
-		return fmt.Errorf("error getting committee and attestaion records for epoch %d: %w", epoch, err)
+		return nil, fmt.Errorf("Error getting committee and attestaion records for epoch %d: %w", epoch, err)
 	}
 
-	if getDuties {
-		// Get all of the expected duties for the epoch
-		err = r.getDutiesForEpoch(committeeData)
-		if err != nil {
-			return fmt.Errorf("error getting duties for epoch %d: %w", epoch, err)
-		}
+	return out, nil
+
+}
+
+func (r *treeGeneratorImpl_v8) fetchEpochs(startEpoch uint64, endEpoch uint64, errChan chan error, startTime time.Time) {
+	// seq tracks the next expected epoch in the sequence to be sent to the caller
+	// Since we fetch epochs in parallel, each thread will sleep until it becomes its turn
+	// to publish an epoch to the caller via the resp channel. Every time seq is updated,
+	// therefor, all threads must wake up to check the value of seq. If it isn't their turn,
+	// they will go back to sleep.
+	var seq uint64
+
+	// If we encounter an error, we will wake up all the threads so they can exit. Therefor,
+	// the first time we encounter an error we should set 'done' to true, and then each thread
+	// should check its value every time they are woken.
+	var done bool
+
+	// A cond to help the workers synchronize- whenever one thread wants to wake up the other
+	// threads, it does so by broadcasting on this cond.
+	cond := sync.NewCond(&sync.Mutex{})
+	workers := getWorkerCount()
+
+	// seq should start with the first epoch the caller is expecting
+	seq = startEpoch
+
+	for j := uint64(0); j < workers; j++ {
+
+		id := j
+		go func() {
+			// each worker will iterate modulo its id
+			for epoch := startEpoch + id; epoch < endEpoch+1; epoch += workers {
+				// Fetch the duties and participation for a single epoch
+				es, err := r.fetchEpoch(true, epoch)
+				if err != nil {
+					// Return the error to the caller
+					errChan <- err
+					// Note that an error was encountered
+					done = true
+					// Tell other threads to wake up and exit
+					cond.Broadcast()
+					// Exit this thread
+					return
+				}
+
+				// Wait until it's this worker's turn to produce a result
+				cond.L.Lock()
+				for seq != epoch && !done {
+					// No errors have been encountered, and it is not this worker's
+					// turn yet, so go back to sleep
+					cond.Wait()
+				}
+
+				// Check if this worker was woken up due to an error
+				if done {
+					// Another worker encountered an error, so exit now
+					return
+				}
+
+				// No error was encountered, and seq indicates it's this worker's turn
+				// to update the state, so process the epoch
+				r.processEpoch(es)
+
+				if epoch == endEpoch {
+					// The last result has been produced, so close the channels
+					close(errChan)
+					// This worker produced the last result, so
+					// signal to the other workers that it is time to exit
+					done = true
+				} else {
+					seq++
+					if seq%100 == 99 {
+						timeTaken := time.Since(startTime)
+						r.log.Printlnf("%s On Epoch %d of %d (%.2f%%)... (%s so far)",
+							r.logPrefix,
+							es.epoch,
+							endEpoch,
+							float64(es.epoch-startEpoch)/float64(endEpoch-startEpoch)*100.0,
+							timeTaken)
+					}
+				}
+
+				// Either seq has been updated or the last result was produced
+				// signal to the other workers to wake up and either do work,
+				// or exit now.
+				cond.Broadcast()
+				cond.L.Unlock()
+			}
+		}()
+	}
+}
+
+// Process an epoch, optionally getting the duties for all eligible minipools in it and checking each one's attestation performance
+func (r *treeGeneratorImpl_v8) processEpoch(es *epochState) {
+
+	// Get all of the expected duties for the epoch
+	// Note: committees will be nil for the last epoch
+	if es.committees != nil {
+		r.getDutiesForEpoch(es.committees)
 	}
 
 	// Process all of the slots in the epoch
 	for i := uint64(0); i < r.slotsPerEpoch; i++ {
-		slot := epoch*r.slotsPerEpoch + i
-		attestations := attestationsPerSlot[i]
-		if len(attestations) > 0 {
-			r.checkDutiesForSlot(attestations, slot)
+		slot := es.epoch*r.slotsPerEpoch + i
+
+		// The element will be nil if there was no block at the slot
+		if len(es.attestations[i]) > 0 {
+			// There was a block - process its attestations
+			r.checkDutiesForSlot(es.attestations[i], slot)
 		}
 	}
-
-	return nil
 
 }
 
@@ -960,7 +1064,7 @@ func (r *treeGeneratorImpl_v8) getDutiesForEpoch(committees beacon.Committees) e
 func (r *treeGeneratorImpl_v8) createMinipoolIndexMap() error {
 
 	// Get the status for all uncached minipool validators and add them to the cache
-	r.validatorIndexMap = map[string]*MinipoolInfo{}
+	r.validatorIndexMap = map[uint64]*MinipoolInfo{}
 	for _, details := range r.nodeDetails {
 		if details.IsEligible {
 			for _, minipoolInfo := range details.Minipools {
@@ -978,7 +1082,11 @@ func (r *treeGeneratorImpl_v8) createMinipoolIndexMap() error {
 					default:
 						// Get the validator index
 						minipoolInfo.ValidatorIndex = status.Index
-						r.validatorIndexMap[minipoolInfo.ValidatorIndex] = minipoolInfo
+						vIdx, err := strconv.ParseUint(minipoolInfo.ValidatorIndex, 10, 64)
+						if err != nil {
+							vIdx = 0
+						}
+						r.validatorIndexMap[vIdx] = minipoolInfo
 
 						// Get the validator's activation start and end slots
 						startSlot := status.ActivationEpoch * r.beaconConfig.SlotsPerEpoch
