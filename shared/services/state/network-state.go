@@ -29,6 +29,7 @@ var oneHundredEth = big.NewInt(0).Mul(oneHundred, oneEth)
 var fifteenEth = big.NewInt(0).Mul(big.NewInt(15), oneEth)
 var _13_6137_Eth = big.NewInt(0).Mul(big.NewInt(136137), big.NewInt(1e14))
 var _13_Eth = big.NewInt(0).Mul(big.NewInt(13), oneEth)
+var _1_5_Eth = big.NewInt(15e17)
 
 type NetworkState struct {
 	// Block / slot for this state
@@ -323,6 +324,65 @@ func CreateNetworkStateForNode(cfg *config.RocketPoolConfig, rp *rocketpool.Rock
 	state.logLine("%d/%d - Calculated complete node and user balance shares (total time: %s)", currentStep, steps, time.Since(start))
 
 	return state, totalEffectiveStake, nil
+}
+
+func (s *NetworkState) getNodeVotingPower(eligibleBondedEth *big.Int, nodeStake *big.Int) *big.Int {
+	rplPrice := s.NetworkDetails.RplPrice
+
+	// No RPL staked means no voting power
+	if nodeStake.Sign() == 0 {
+		return big.NewInt(0)
+	}
+
+	// First calculate the maximum rpl that can be used as input
+	// maxVotingRpl := (eligibleBondedEth * 1.5 Eth / RplPrice)
+	maxVotingRpl := big.NewInt(0)
+	maxVotingRpl.Mul(eligibleBondedEth, _1_5_Eth)
+	maxVotingRpl.Quo(maxVotingRpl, rplPrice)
+
+	// Determine the voting RPL
+	// votingRpl := min(maxVotingRpl, nodeStake)
+	var votingRpl *big.Int
+	if maxVotingRpl.Cmp(nodeStake) <= 0 {
+		votingRpl = maxVotingRpl
+	} else {
+		votingRpl = nodeStake
+	}
+
+	// Now take the square root and divide by 2
+	// Because the units are in wei, we need to multiply votingRpl by 1 Eth before square rooting.
+	votingPower := big.NewInt(0)
+	votingPower.Mul(votingRpl, oneEth)
+	votingPower.Sqrt(votingPower)
+	votingPower.Rsh(votingPower, 1)
+	return votingPower
+}
+
+func (s *NetworkState) CalculateVotingPower() (*big.Int, error) {
+	totalVotingPower := big.NewInt(0)
+
+	// Get the voting power for each node
+	for _, node := range s.NodeDetails {
+		activeMinipoolCount := int64(0)
+		for _, mpd := range s.MinipoolDetailsByNode[node.NodeAddress] {
+			// Ignore finalised
+			if mpd.Finalised {
+				continue
+			}
+
+			activeMinipoolCount += 1
+		}
+
+		// Get provided ETH (32 * minipoolCount - matched)
+		ethProvided := big.NewInt(activeMinipoolCount * 32)
+		ethProvided.Mul(ethProvided, oneEth)
+		ethProvided.Sub(ethProvided, node.EthMatched)
+
+		// Calculate the Voting Power
+		totalVotingPower.Add(totalVotingPower, s.getNodeVotingPower(ethProvided, node.RplStake))
+	}
+
+	return totalVotingPower, nil
 }
 
 func (s *NetworkState) getNodeWeight(eligibleBorrowedEth *big.Int, nodeStake *big.Int) *big.Int {

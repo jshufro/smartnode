@@ -338,6 +338,14 @@ func (r *treeGeneratorImpl_v8) calculateRplRewards() error {
 		return fmt.Errorf("error calculating node weights: %w", err)
 	}
 
+	// Calculate the voting power for sprocketpool
+	totalVotingPower, err := r.networkState.CalculateVotingPower()
+	if err != nil {
+		return fmt.Errorf("error calculating voting power: %w", err)
+	}
+	r.rewardsFile.TotalVotingPower = NewQuotedBigInt(0)
+	r.rewardsFile.TotalVotingPower.Set(totalVotingPower)
+
 	// Operate normally if any node has rewards
 	if totalNodeEffectiveStake.Sign() > 0 && totalNodeWeight.Sign() > 0 {
 		// Make sure to record totalNodeWeight in the rewards file
@@ -510,6 +518,9 @@ func (r *treeGeneratorImpl_v8) calculateRplRewards() error {
 
 	// Print total node weight
 	r.log.Printlnf("%s Total Node Weight:            %s", r.logPrefix, totalNodeWeight)
+
+	// Print total node voting power
+	r.log.Printlnf("%s Total Voting Power:           %s", r.logPrefix, totalVotingPower)
 
 	return nil
 

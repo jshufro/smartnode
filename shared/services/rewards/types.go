@@ -116,6 +116,7 @@ type RewardsFileHeader struct {
 	MerkleRoot                 string                         `json:"merkleRoot,omitempty"`
 	MinipoolPerformanceFileCID string                         `json:"minipoolPerformanceFileCid,omitempty"`
 	TotalRewards               *TotalRewards                  `json:"totalRewards"`
+	TotalVotingPower           *QuotedBigInt                  `json:"totalVotingPower,omitempty"`
 	NetworkRewards             map[uint64]*NetworkRewardsInfo `json:"networkRewards"`
 
 	// Non-serialized fields
