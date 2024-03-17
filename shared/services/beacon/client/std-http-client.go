@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/goccy/go-json"
 	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
+	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	eth2types "github.com/wealdtech/go-eth2-types/v2"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -519,36 +520,37 @@ func (c *StandardHttpClient) GetAttestationsRaw(blockId string) (*attestationsRe
 }
 
 func (c *StandardHttpClient) ParseAttestationsResponseRaw(resp *attestationsResponseRaw) ([]beacon.AttestationInfo, error) {
-	var attestations []*gec.Attestation
+	var attestations []*ethpb.Attestation
 
-	// Unmarshal block SSZ
 	if strings.EqualFold(resp.version, "phase0") {
-		block := new(gec.SignedBeaconBlockPhase0)
+		block := new(ethpb.SignedBeaconBlock)
 		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
-
 		attestations = block.Block.Body.Attestations
 	} else if strings.EqualFold(resp.version, "altair") {
-		block := new(gec.SignedBeaconBlockAltair)
+		block := new(ethpb.SignedBeaconBlockAltair)
 		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
-
 		attestations = block.Block.Body.Attestations
 	} else if strings.EqualFold(resp.version, "bellatrix") {
-		block := new(gec.SignedBeaconBlockBellatrix)
+		block := new(ethpb.SignedBeaconBlockBellatrix)
 		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
-
 		attestations = block.Block.Body.Attestations
 	} else if strings.EqualFold(resp.version, "capella") {
-		block := new(gec.SignedBeaconBlockCapella)
+		block := new(ethpb.SignedBeaconBlockCapella)
 		if err := block.UnmarshalSSZ(resp.body); err != nil {
 			return nil, err
 		}
-
+		attestations = block.Block.Body.Attestations
+	} else if strings.EqualFold(resp.version, "deneb") {
+		block := new(ethpb.SignedBeaconBlockDeneb)
+		if err := block.UnmarshalSSZ(resp.body); err != nil {
+			return nil, err
+		}
 		attestations = block.Block.Body.Attestations
 	} else {
 		return nil, fmt.Errorf("unknown consensus version header: %s", resp.version)
@@ -557,8 +559,8 @@ func (c *StandardHttpClient) ParseAttestationsResponseRaw(resp *attestationsResp
 	out := make([]beacon.AttestationInfo, len(attestations))
 	for i := range attestations {
 		out[i].AggregationBits = attestations[i].AggregationBits
-		out[i].SlotIndex = attestations[i].Data.Slot
-		out[i].CommitteeIndex = attestations[i].Data.Index
+		out[i].SlotIndex = uint64(attestations[i].Data.Slot)
+		out[i].CommitteeIndex = uint64(attestations[i].Data.CommitteeIndex)
 	}
 
 	return out, nil
