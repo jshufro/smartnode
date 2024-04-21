@@ -43,31 +43,34 @@ const (
 
 // Submit RPL price task
 type SubmitRplPrice struct {
-	ctx       context.Context
-	sp        *services.ServiceProvider
-	logger    *slog.Logger
-	cfg       *config.SmartNodeConfig
-	ec        eth.IExecutionClient
-	w         *wallet.Wallet
-	rp        *rocketpool.RocketPool
-	bc        beacon.IBeaconClient
-	lock      *sync.Mutex
-	isRunning bool
+	ctx              context.Context
+	sp               *services.ServiceProvider
+	logger           *slog.Logger
+	cfg              *config.SmartNodeConfig
+	ec               eth.IExecutionClient
+	w                *wallet.Wallet
+	rp               *rocketpool.RocketPool
+	bc               beacon.IBeaconClient
+	eventLogInterval *big.Int
+	lock             *sync.Mutex
+	isRunning        bool
 }
 
 // Create submit RPL price task
 func NewSubmitRplPrice(ctx context.Context, sp *services.ServiceProvider, logger *log.Logger) *SubmitRplPrice {
 	lock := &sync.Mutex{}
 	return &SubmitRplPrice{
-		ctx:    ctx,
-		sp:     sp,
-		logger: logger.With(slog.String(keys.TaskKey, "Price Report")),
-		cfg:    sp.GetConfig(),
-		ec:     sp.GetEthClient(),
-		w:      sp.GetWallet(),
-		rp:     sp.GetRocketPool(),
-		bc:     sp.GetBeaconClient(),
-		lock:   lock,
+		ctx:              ctx,
+		sp:               sp,
+		logger:           logger.With(slog.String(keys.TaskKey, "Price Report")),
+		cfg:              sp.GetConfig(),
+		ec:               sp.GetEthClient(),
+		w:                sp.GetWallet(),
+		rp:               sp.GetRocketPool(),
+		bc:               sp.GetBeaconClient(),
+		eventLogInterval: big.NewInt(int64(config.EventLogInterval)),
+		lock:             lock,
+		isRunning:        false,
 	}
 }
 
@@ -82,7 +85,7 @@ func (t *SubmitRplPrice) Run(state *state.NetworkState) error {
 	err := t.updateL2Prices(state)
 	if err != nil {
 		// Error is not fatal for this task so print and continue
-		t.logger.Error("Error updating L2 prices: %s", err.Error())
+		t.logger.Error("Error updating L2 prices", log.Err(err))
 	}
 
 	// Make a new RP binding just for this portion
@@ -96,7 +99,7 @@ func (t *SubmitRplPrice) Run(state *state.NetworkState) error {
 	}
 
 	// Get the last prices updated event
-	found, event, err := networkMgr.GetPriceUpdatedEvent(lastSubmissionBlock, nil)
+	found, event, err := networkMgr.GetPriceUpdatedEvent(lastSubmissionBlock, t.eventLogInterval, nil, nil)
 	if err != nil {
 		return fmt.Errorf("error getting event for price updated on block %d: %w", lastSubmissionBlock, err)
 	}

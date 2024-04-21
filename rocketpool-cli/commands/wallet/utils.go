@@ -166,7 +166,7 @@ func promptForCustomKeyPasswords(cfg *config.SmartNodeConfig, testOnly bool) (st
 
 	// Prompt the user with a warning message
 	if !testOnly {
-		fmt.Printf("%sWARNING:\nThe Smartnode has detected that you have custom (externally-derived) validator keys for your minipools.\nIf these keys were actively used for validation by a service such as Allnodes, you MUST CONFIRM WITH THAT SERVICE that they have stopped validating and disabled those keys, and will NEVER validate with them again.\nOtherwise, you may both run the same keys at the same time which WILL RESULT IN YOUR VALIDATORS BEING SLASHED.%s\n\n", terminal.ColorRed, terminal.ColorReset)
+		fmt.Printf("%sWARNING:\nThe Smart Node has detected that you have custom (externally-derived) validator keys for your minipools.\nIf these keys were actively used for validation by a service such as Allnodes, you MUST CONFIRM WITH THAT SERVICE that they have stopped validating and disabled those keys, and will NEVER validate with them again.\nOtherwise, you may both run the same keys at the same time which WILL RESULT IN YOUR VALIDATORS BEING SLASHED.%s\n\n", terminal.ColorRed, terminal.ColorReset)
 
 		if !utils.Confirm("Please confirm that you have coordinated with the service that was running your minipool validators previously to ensure they have STOPPED validation for your minipools, will NEVER start them again, and you have manually confirmed on a Blockchain explorer such as https://beaconcha.in that your minipools are no longer attesting.") {
 			fmt.Println("Cancelled.")
@@ -194,7 +194,9 @@ func promptForCustomKeyPasswords(cfg *config.SmartNodeConfig, testOnly bool) (st
 	}
 
 	// Notify the user
-	fmt.Println("It looks like you have some custom keystores for your minipool's validators.\nYou will be prompted for the passwords each one was encrypted with, so they can be loaded into the Validator Client that Rocket Pool manages for you.\n")
+	fmt.Println("It looks like you have some custom keystores for your minipool's validators.")
+	fmt.Println("You will be prompted for the passwords each one was encrypted with, so they can be loaded into the Validator Client that Rocket Pool manages for you.")
+	fmt.Println()
 
 	// Get the passwords for each one
 	pubkeyPasswords := map[string]string{}
@@ -221,15 +223,4 @@ func promptForCustomKeyPasswords(cfg *config.SmartNodeConfig, testOnly bool) (st
 	}
 
 	return passwordFile, nil
-}
-
-// Deletes the custom key password file
-func deleteCustomKeyPasswordFile(passwordFile string) error {
-	_, err := os.Stat(passwordFile)
-	if os.IsNotExist(err) {
-		return nil
-	}
-
-	err = os.Remove(passwordFile)
-	return err
 }
