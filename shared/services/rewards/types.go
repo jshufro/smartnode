@@ -16,7 +16,7 @@ type rewardsFileVersion uint64
 const (
 	FarEpoch uint64 = 18446744073709551615
 
-	rewardsFileVersionUnknown = iota
+	rewardsFileVersionUnknown rewardsFileVersion = iota
 	rewardsFileVersionOne
 	rewardsFileVersionTwo
 	rewardsFileVersionThree
@@ -151,7 +151,7 @@ type IntervalInfo struct {
 	SmoothingPoolEthAmount *QuotedBigInt `json:"smoothingPoolEthAmount"`
 	MerkleProof            []common.Hash `json:"merkleProof"`
 
-	TotalNodeWeight *QuotedBigInt `json:"-"`
+	TotalNodeWeight *big.Int `json:"-"`
 }
 
 type MinipoolInfo struct {
