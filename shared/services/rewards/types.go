@@ -55,7 +55,6 @@ type IRewardsFile interface {
 	GetIndex() uint64
 	GetTotalNodeWeight() *big.Int
 	GetMerkleRoot() string
-	GetNetworkRewards(network uint64) *NetworkRewardsInfo
 	GetIntervalsPassed() uint64
 	GetTotalProtocolDaoRpl() *big.Int
 	GetTotalOracleDaoRpl() *big.Int
@@ -75,6 +74,12 @@ type IRewardsFile interface {
 	GetNodeOracleDaoRpl(common.Address) *big.Int
 	GetNodeSmoothingPoolEth(common.Address) *big.Int
 	GetMerkleProof(common.Address) []common.Hash
+
+	// Getters for network info
+	HasRewardsForNetwork(network uint64) bool
+	GetNetworkCollateralRpl(network uint64) *big.Int
+	GetNetworkOracleDaoRpl(network uint64) *big.Int
+	GetNetworkSmoothingPoolEth(network uint64) *big.Int
 
 	// Sets the CID of the minipool performance file corresponding to this rewards file
 	SetMinipoolPerformanceFileCID(cid string)
