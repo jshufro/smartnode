@@ -438,12 +438,28 @@ func (f *SSZFile_v1) GetNodeAddresses() []common.Address {
 	return out
 }
 
+func (f *SSZFile_v1) GetConsensusStartBlock() uint64 {
+	return f.ConsensusStartBlock
+}
+
+func (f *SSZFile_v1) GetExecutionStartBlock() uint64 {
+	return f.ExecutionStartBlock
+}
+
 func (f *SSZFile_v1) GetConsensusEndBlock() uint64 {
 	return f.ConsensusEndBlock
 }
 
 func (f *SSZFile_v1) GetExecutionEndBlock() uint64 {
 	return f.ExecutionEndBlock
+}
+
+func (f *SSZFile_v1) GetStartTime() time.Time {
+	return f.StartTime
+}
+
+func (f *SSZFile_v1) GetEndTime() time.Time {
+	return f.EndTime
 }
 
 func (f *SSZFile_v1) GetIntervalsPassed() uint64 {

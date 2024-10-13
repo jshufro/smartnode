@@ -88,8 +88,11 @@ func GetIntervalInfo(rp *rocketpool.RocketPool, cfg *config.RocketPoolConfig, no
 	info.Index = interval
 	var event rewards.RewardsEvent
 
+	previousRewardsPoolAddresses := cfg.Smartnode.GetPreviousRewardsPoolAddresses()
+
 	// Get the event details for this interval
-	event, err = GetRewardSnapshotEvent(rp, cfg, interval, opts)
+	client := NewRewardsExecutionClient(rp)
+	event, err = client.GetRewardSnapshotEvent(previousRewardsPoolAddresses, interval, opts)
 	if err != nil {
 		return
 	}
@@ -149,22 +152,6 @@ func GetIntervalInfo(rp *rocketpool.RocketPool, cfg *config.RocketPoolConfig, no
 	info.MerkleProof = proof
 
 	return
-}
-
-// Get the event for a rewards snapshot
-func GetRewardSnapshotEvent(rp *rocketpool.RocketPool, cfg *config.RocketPoolConfig, interval uint64, opts *bind.CallOpts) (rewards.RewardsEvent, error) {
-
-	addresses := cfg.Smartnode.GetPreviousRewardsPoolAddresses()
-	found, event, err := rewards.GetRewardsEvent(rp, interval, addresses, opts)
-	if err != nil {
-		return rewards.RewardsEvent{}, fmt.Errorf("error getting rewards event for interval %d: %w", interval, err)
-	}
-	if !found {
-		return rewards.RewardsEvent{}, fmt.Errorf("interval %d event not found", interval)
-	}
-
-	return event, nil
-
 }
 
 // Get the number of the latest EL block that was created before the given timestamp

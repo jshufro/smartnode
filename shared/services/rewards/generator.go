@@ -61,7 +61,7 @@ type TreeGenerator struct {
 	rewardsIntervalInfos map[uint64]rewardsIntervalInfo
 	logger               *log.ColorLogger
 	logPrefix            string
-	rp                   *rocketpool.RocketPool
+	rp                   *defaultRewardsExecutionClient
 	cfg                  *config.RocketPoolConfig
 	bc                   beacon.Client
 	index                uint64
@@ -84,18 +84,18 @@ type SnapshotEnd struct {
 }
 
 type treeGeneratorImpl interface {
-	generateTree(rp *rocketpool.RocketPool, cfg *config.RocketPoolConfig, bc beacon.Client) (*GenerateTreeResult, error)
-	approximateStakerShareOfSmoothingPool(rp *rocketpool.RocketPool, cfg *config.RocketPoolConfig, bc beacon.Client) (*big.Int, error)
+	generateTree(rp RewardsExecutionClient, networkName string, previousRewardsPoolAddresses []common.Address, bc RewardsBeaconClient) (*GenerateTreeResult, error)
+	approximateStakerShareOfSmoothingPool(rp RewardsExecutionClient, networkName string, bc RewardsBeaconClient) (*big.Int, error)
 	getRulesetVersion() uint64
 	// Returns the primary artifact cid for consensus, all cids of all files in a map, and any potential errors
-	saveFiles(treeResult *GenerateTreeResult, nodeTrusted bool) (cid.Cid, map[string]cid.Cid, error)
+	saveFiles(smartnode *config.SmartnodeConfig, treeResult *GenerateTreeResult, nodeTrusted bool) (cid.Cid, map[string]cid.Cid, error)
 }
 
 func NewTreeGenerator(logger *log.ColorLogger, logPrefix string, rp *rocketpool.RocketPool, cfg *config.RocketPoolConfig, bc beacon.Client, index uint64, startTime time.Time, endTime time.Time, snapshotEnd *SnapshotEnd, elSnapshotHeader *types.Header, intervalsPassed uint64, state *state.NetworkState, rollingRecord *RollingRecord) (*TreeGenerator, error) {
 	t := &TreeGenerator{
 		logger:           logger,
 		logPrefix:        logPrefix,
-		rp:               rp,
+		rp:               &defaultRewardsExecutionClient{rp},
 		cfg:              cfg,
 		bc:               bc,
 		index:            index,
@@ -192,11 +192,11 @@ type GenerateTreeResult struct {
 }
 
 func (t *TreeGenerator) GenerateTree() (*GenerateTreeResult, error) {
-	return t.generatorImpl.generateTree(t.rp, t.cfg, t.bc)
+	return t.generatorImpl.generateTree(t.rp, fmt.Sprint(t.cfg.Smartnode.Network.Value), t.cfg.Smartnode.GetPreviousRewardsPoolAddresses(), t.bc)
 }
 
 func (t *TreeGenerator) ApproximateStakerShareOfSmoothingPool() (*big.Int, error) {
-	return t.approximatorImpl.approximateStakerShareOfSmoothingPool(t.rp, t.cfg, t.bc)
+	return t.approximatorImpl.approximateStakerShareOfSmoothingPool(t.rp, fmt.Sprint(t.cfg.Smartnode.Network.Value), t.bc)
 }
 
 func (t *TreeGenerator) GetGeneratorRulesetVersion() uint64 {
@@ -213,7 +213,12 @@ func (t *TreeGenerator) GenerateTreeWithRuleset(ruleset uint64) (*GenerateTreeRe
 		return nil, fmt.Errorf("ruleset v%d does not exist", ruleset)
 	}
 
-	return info.generator.generateTree(t.rp, t.cfg, t.bc)
+	return info.generator.generateTree(
+		t.rp,
+		fmt.Sprint(t.cfg.Smartnode.Network.Value),
+		t.cfg.Smartnode.GetPreviousRewardsPoolAddresses(),
+		t.bc,
+	)
 }
 
 func (t *TreeGenerator) ApproximateStakerShareOfSmoothingPoolWithRuleset(ruleset uint64) (*big.Int, error) {
@@ -222,9 +227,9 @@ func (t *TreeGenerator) ApproximateStakerShareOfSmoothingPoolWithRuleset(ruleset
 		return nil, fmt.Errorf("ruleset v%d does not exist", ruleset)
 	}
 
-	return info.generator.approximateStakerShareOfSmoothingPool(t.rp, t.cfg, t.bc)
+	return info.generator.approximateStakerShareOfSmoothingPool(t.rp, fmt.Sprint(t.cfg.Smartnode.Network.Value), t.bc)
 }
 
 func (t *TreeGenerator) SaveFiles(treeResult *GenerateTreeResult, nodeTrusted bool) (cid.Cid, map[string]cid.Cid, error) {
-	return t.generatorImpl.saveFiles(treeResult, nodeTrusted)
+	return t.generatorImpl.saveFiles(t.cfg.Smartnode, treeResult, nodeTrusted)
 }
