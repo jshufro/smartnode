@@ -22,6 +22,7 @@ import (
 	"github.com/rocket-pool/smartnode/rocketpool/watchtower/collectors"
 	"github.com/rocket-pool/smartnode/shared/services"
 	"github.com/rocket-pool/smartnode/shared/services/beacon"
+	"github.com/rocket-pool/smartnode/shared/services/beacon/client"
 	"github.com/rocket-pool/smartnode/shared/services/state"
 	"github.com/rocket-pool/smartnode/shared/services/wallet"
 	"github.com/rocket-pool/smartnode/shared/utils/log"
@@ -131,10 +132,6 @@ func run(c *cli.Command) error {
 	if err != nil {
 		return err
 	}
-	bc, err := services.GetBeaconClient(c)
-	if err != nil {
-		return err
-	}
 
 	protocolVersion, err := utils.GetCurrentVersion(rp, nil)
 	if err != nil {
@@ -158,6 +155,20 @@ func run(c *cli.Command) error {
 	// Initialize error logger
 	errorLog := log.NewColorLogger(ErrorColor)
 	updateLog := log.NewColorLogger(UpdateColor)
+
+	var bc beacon.Client
+	// Override the beacon client, if requested
+	if beaconOverride := os.Getenv("TREEGEN_BEACON_CLIENT_ENDPOINT"); beaconOverride != "" {
+		updateLog.Printlnf("Overriding the Beacon Node URL to %s", beaconOverride)
+		bc = client.NewStandardHttpClient(beaconOverride)
+	} else {
+		var err error
+
+		bc, err = services.GetBeaconClient(c)
+		if err != nil {
+			return err
+		}
+	}
 
 	// Create the state manager
 	m := state.NewNetworkStateManager(rp, cfg.Smartnode.GetStateManagerContracts(), bc, &updateLog)
