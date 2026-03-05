@@ -399,8 +399,16 @@ func (mbc *MockBeaconCommittees) Slot(index int) uint64 {
 
 // Validators returns the list of validators of the committee at
 // the provided offset
-func (mbc *MockBeaconCommittees) Validators(index int) []string {
-	return mbc.slots[index].validators
+func (mbc *MockBeaconCommittees) Validators(index int) []uint64 {
+	out := make([]uint64, 0, len(mbc.slots[index].validators))
+	for _, v := range mbc.slots[index].validators {
+		u, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		out = append(out, u)
+	}
+	return out
 }
 
 func (mbc *MockBeaconCommittees) ValidatorCount(index int) int {

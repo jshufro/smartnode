@@ -227,7 +227,7 @@ type IntervalInfo struct {
 
 type MegapoolValidatorInfo struct {
 	Pubkey                  types.ValidatorPubkey `json:"pubkey"`
-	Index                   string                `json:"index"`
+	Index                   uint64                `json:"index"`
 	MissedAttestations      uint64                `json:"-"`
 	GoodAttestations        uint64                `json:"-"`
 	MissingAttestationSlots map[uint64]bool       `json:"missingAttestationSlots"`
@@ -248,14 +248,14 @@ type MegapoolInfo struct {
 	Validators           []*MegapoolValidatorInfo `json:"validators"`
 	ActiveValidatorCount uint32                   `json:"active_validator_count"`
 	// Indexes over Validators slice above
-	ValidatorIndexMap map[string]*MegapoolValidatorInfo `json:"-"`
+	ValidatorIndexMap map[uint64]*MegapoolValidatorInfo `json:"-"`
 	VoteEligibleRpl   *big.Int                          `json:"vote_eligible_rpl"`
 }
 
 type MinipoolInfo struct {
 	Address                 common.Address        `json:"address"`
 	ValidatorPubkey         types.ValidatorPubkey `json:"pubkey"`
-	ValidatorIndex          string                `json:"index"`
+	ValidatorIndex          uint64                `json:"index"`
 	Node                    *NodeSmoothingDetails `json:"node"`
 	Fee                     *big.Int              `json:"-"`
 	MissedAttestations      uint64                `json:"-"`
@@ -290,7 +290,7 @@ type SlotInfo struct {
 // MegapoolPositionInfo is a wrapper around MegapoolInfo with additional indexing and functionality
 type MegapoolPositionInfo struct {
 	Info           *MegapoolInfo
-	ValidatorIndex string
+	ValidatorIndex uint64
 }
 
 func (m *MegapoolPositionInfo) GetValidator() *MegapoolValidatorInfo {

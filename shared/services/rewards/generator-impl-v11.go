@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"os"
+	"runtime/pprof"
 	"slices"
+	"strconv"
 	"sync"
 	"time"
 
@@ -42,8 +45,8 @@ type treeGeneratorImpl_v11 struct {
 	smoothingPoolBalance         *big.Int
 	intervalDutiesInfo           *IntervalDutiesInfo
 	slotsPerEpoch                uint64
-	minipoolValidatorIndexMap    map[string]*MinipoolInfo
-	megapoolValidatorIndexMap    map[string]*MegapoolInfo
+	minipoolValidatorIndexMap    map[uint64]*MinipoolInfo
+	megapoolValidatorIndexMap    map[uint64]*MegapoolInfo
 	elStartTime                  time.Time
 	elEndTime                    time.Time
 	validNetworkCache            map[uint64]bool
@@ -66,6 +69,7 @@ type treeGeneratorImpl_v11 struct {
 	// fields for RPIP-62 bonus calculations
 	// Withdrawals made by a minipool's validator.
 	minipoolWithdrawals map[common.Address]*big.Int
+	withdrawalsLock     *sync.Mutex
 }
 
 // Create a new tree generator
@@ -92,7 +96,7 @@ func newTreeGeneratorImpl_v11(log *log.ColorLogger, logPrefix string, index uint
 			NodeRewards:    ssz_types.NodeRewards_v2{},
 		},
 		validatorStatusMap:        map[rptypes.ValidatorPubkey]beacon.ValidatorStatus{},
-		minipoolValidatorIndexMap: map[string]*MinipoolInfo{},
+		minipoolValidatorIndexMap: map[uint64]*MinipoolInfo{},
 		elSnapshotHeader:          elSnapshotHeader,
 		snapshotEnd:               snapshotEnd,
 		log:                       log,
@@ -110,6 +114,7 @@ func newTreeGeneratorImpl_v11(log *log.ColorLogger, logPrefix string, index uint
 		nodeRewards:         map[common.Address]*ssz_types.NodeReward_v2{},
 		networkRewards:      map[ssz_types.Layer]*ssz_types.NetworkReward{},
 		minipoolWithdrawals: map[common.Address]*big.Int{},
+		withdrawalsLock:     new(sync.Mutex),
 		isEligibleInterval:  isEligibleInterval,
 	}
 }
@@ -1057,8 +1062,150 @@ func (r *treeGeneratorImpl_v11) calculateNodeRewards() (*nodeRewards, error) {
 
 }
 
+// Process an epoch, optionally getting the duties for all eligible minipools in it and checking each one's attestation performance
+func (r *treeGeneratorImpl_v11) fetchEpoch(getDuties bool, epoch uint64) (*epochState, error) {
+
+	// Get the committee info and attestation records for this epoch
+	out := &epochState{
+		duringInterval: getDuties,
+		epoch:          epoch,
+		attestations:   make([][]beacon.AttestationInfo, r.slotsPerEpoch),
+		withdrawals:    make(map[uint64][]beacon.WithdrawalInfo),
+	}
+	var wg errgroup.Group
+
+	if getDuties {
+		wg.Go(func() error {
+			var err error
+			out.committees, err = r.bc.GetCommitteesForEpoch(&epoch)
+			return err
+		})
+	}
+
+	wg.Go(func() error {
+		for i := uint64(0); i < r.slotsPerEpoch; i++ {
+			slot := epoch*r.slotsPerEpoch + i
+			beaconBlock, found, err := r.bc.GetBeaconBlock(fmt.Sprint(slot))
+			if err != nil {
+				return err
+			}
+			if found {
+				//out.attestationsResponses[i] = attestations
+				out.withdrawals[slot] = beaconBlock.Withdrawals
+				out.attestations[i] = beaconBlock.Attestations
+			} else {
+				//out.attestationsResponses[i] = nil
+				out.attestations[i] = nil
+			}
+		}
+		return nil
+	})
+	err := wg.Wait()
+	if err != nil {
+		return nil, fmt.Errorf("Error getting committee and attestaion records for epoch %d: %w", epoch, err)
+	}
+
+	return out, nil
+
+}
+
+func (r *treeGeneratorImpl_v11) fetchEpochs(startEpoch uint64, endEpoch uint64, errChan chan error, startTime time.Time) {
+	// seq tracks the next expected epoch in the sequence to be sent to the caller
+	// Since we fetch epochs in parallel, each thread will sleep until it becomes its turn
+	// to publish an epoch to the caller via the resp channel. Every time seq is updated,
+	// therefor, all threads must wake up to check the value of seq. If it isn't their turn,
+	// they will go back to sleep.
+	var seq uint64
+
+	// If we encounter an error, we will wake up all the threads so they can exit. Therefor,
+	// the first time we encounter an error we should set 'done' to true, and then each thread
+	// should check its value every time they are woken.
+	var done bool
+
+	// A cond to help the workers synchronize- whenever one thread wants to wake up the other
+	// threads, it does so by broadcasting on this cond.
+	cond := sync.NewCond(&sync.Mutex{})
+	workers := getWorkerCount()
+
+	// seq should start with the first epoch the caller is expecting
+	seq = startEpoch
+
+	for j := uint64(0); j < workers; j++ {
+
+		id := j
+		go func() {
+			// each worker will iterate modulo its id
+			for epoch := startEpoch + id; epoch < endEpoch+1; epoch += workers {
+				// Fetch the duties and participation for a single epoch
+				es, err := r.fetchEpoch(true, epoch)
+				if err != nil {
+					// Return the error to the caller
+					errChan <- err
+					// Note that an error was encountered
+					done = true
+					// Tell other threads to wake up and exit
+					cond.Broadcast()
+					// Exit this thread
+					return
+				}
+
+				// Wait until it's this worker's turn to produce a result
+				cond.L.Lock()
+				for seq != epoch && !done {
+					// No errors have been encountered, and it is not this worker's
+					// turn yet, so go back to sleep
+					cond.Wait()
+				}
+
+				// Check if this worker was woken up due to an error
+				if done {
+					// Another worker encountered an error, so exit now
+					return
+				}
+
+				// No error was encountered, and seq indicates it's this worker's turn
+				// to update the state, so process the epoch
+				r.processEpoch(es)
+
+				if epoch == endEpoch {
+					// The last result has been produced, so close the channels
+					close(errChan)
+					// This worker produced the last result, so
+					// signal to the other workers that it is time to exit
+					done = true
+				} else {
+					seq++
+					if seq%100 == 99 {
+						timeTaken := time.Since(startTime)
+						r.log.Printlnf("%s On Epoch %d of %d (%.2f%%)... (%s so far)",
+							r.logPrefix,
+							es.epoch,
+							endEpoch,
+							float64(es.epoch-startEpoch)/float64(endEpoch-startEpoch)*100.0,
+							timeTaken)
+					}
+				}
+
+				// Either seq has been updated or the last result was produced
+				// signal to the other workers to wake up and either do work,
+				// or exit now.
+				cond.Broadcast()
+				cond.L.Unlock()
+			}
+		}()
+	}
+}
+
 // Get all of the duties for a range of epochs
 func (r *treeGeneratorImpl_v11) processAttestationsBalancesAndWithdrawalsForInterval() error {
+	if os.Getenv("DUTIES_PPROF") != "" {
+		f, err := os.Create(os.Getenv("DUTIES_PPROF"))
+		if err != nil {
+			return err
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	startEpoch := r.rewardsFile.ConsensusStartBlock / r.beaconConfig.SlotsPerEpoch
 	endEpoch := r.rewardsFile.ConsensusEndBlock / r.beaconConfig.SlotsPerEpoch
@@ -1078,29 +1225,26 @@ func (r *treeGeneratorImpl_v11) processAttestationsBalancesAndWithdrawalsForInte
 	r.log.Printlnf("%s Checking participation of %d minipools and %d megapool validators for epochs %d to %d", r.logPrefix, len(r.minipoolValidatorIndexMap), len(r.megapoolValidatorIndexMap), startEpoch, endEpoch)
 	r.log.Printlnf("%s NOTE: this will take a long time, progress is reported every 100 epochs", r.logPrefix)
 
-	epochsDone := 0
+	// Workers need a channel to send back errors
+	errs := make(chan error)
+
 	reportStartTime := time.Now()
-	for epoch := startEpoch; epoch < endEpoch+1; epoch++ {
-		if epochsDone == 100 {
-			timeTaken := time.Since(reportStartTime)
-			r.log.Printlnf("%s On Epoch %d of %d (%.2f%%)... (%s so far)", r.logPrefix, epoch, endEpoch, float64(epoch-startEpoch)/float64(endEpoch-startEpoch)*100.0, timeTaken)
-			epochsDone = 0
-		}
 
-		err := r.processEpoch(true, epoch)
-		if err != nil {
-			return err
-		}
+	// Start populating epochStates
+	r.fetchEpochs(startEpoch, endEpoch, errs, reportStartTime)
 
-		epochsDone++
+	// Read until the error channel is closed
+	for err := range errs {
+		return err
 	}
 
 	// Check the epoch after the end of the interval for any lingering attestations
 	epoch := endEpoch + 1
-	err = r.processEpoch(false, epoch)
+	es, err := r.fetchEpoch(false, epoch)
 	if err != nil {
 		return err
 	}
+	r.processEpoch(es)
 
 	r.log.Printlnf("%s Finished participation check (total time = %s)", r.logPrefix, time.Since(reportStartTime))
 	return nil
@@ -1108,112 +1252,75 @@ func (r *treeGeneratorImpl_v11) processAttestationsBalancesAndWithdrawalsForInte
 }
 
 // Process an epoch, optionally getting the duties for all eligible minipools in it and checking each one's attestation performance
-func (r *treeGeneratorImpl_v11) processEpoch(duringInterval bool, epoch uint64) error {
-
-	// Get the committee info and attestation records for this epoch
-	var committeeData beacon.Committees
-	attestationsPerSlot := make([][]beacon.AttestationInfo, r.slotsPerEpoch)
-	var wg errgroup.Group
-
-	if duringInterval {
-		wg.Go(func() error {
-			var err error
-			committeeData, err = r.bc.GetCommitteesForEpoch(&epoch)
-			return err
-		})
-	}
-
-	withdrawalsLock := &sync.Mutex{}
-	for i := uint64(0); i < r.slotsPerEpoch; i++ {
-		// Get the beacon block for this slot
-		i := i
-		slot := epoch*r.slotsPerEpoch + i
-		slotTime := r.networkState.BeaconConfig.GetSlotTime(slot)
-		wg.Go(func() error {
-			beaconBlock, found, err := r.bc.GetBeaconBlock(fmt.Sprint(slot))
-			if err != nil {
-				return err
-			}
-			if found {
-				attestationsPerSlot[i] = beaconBlock.Attestations
-			}
-
-			// If we don't need withdrawal amounts because we're using ruleset 9,
-			// return early
-			if r.rewardsFile.RulesetVersion < 10 || !duringInterval {
-				return nil
-			}
-
-			for _, withdrawal := range beaconBlock.Withdrawals {
-				// Ignore non-RP validators
-				mpi, exists := r.minipoolValidatorIndexMap[withdrawal.ValidatorIndex]
-				if !exists {
-					continue
-				}
-				nnd := r.networkState.NodeDetailsByAddress[mpi.Node.Address]
-				nmd := r.networkState.MinipoolDetailsByAddress[mpi.Address]
-
-				// Check that the node is opted into the SP during this slot
-				if !nnd.WasOptedInAt(slotTime) {
-					continue
-				}
-
-				// Check that the minipool's bond is eligible for bonuses at this slot
-				if eligible := nmd.IsEligibleForBonuses(slotTime); !eligible {
-					continue
-				}
-
-				// If the withdrawal is in or after the minipool's withdrawable epoch, adjust it.
-				withdrawalAmount := withdrawal.Amount
-				validatorInfo := r.networkState.MinipoolValidatorDetails[mpi.ValidatorPubkey]
-				if slot >= r.networkState.BeaconConfig.FirstSlotOfEpoch(validatorInfo.WithdrawableEpoch) {
-					// Subtract 32 ETH from the withdrawal amount
-					withdrawalAmount = big.NewInt(0).Sub(withdrawalAmount, thirtyTwoEth)
-					// max(withdrawalAmount, 0)
-					if withdrawalAmount.Sign() < 0 {
-						withdrawalAmount.SetInt64(0)
-					}
-				}
-
-				// Create the minipool's withdrawal sum big.Int if it doesn't exist
-				withdrawalsLock.Lock()
-				if r.minipoolWithdrawals[mpi.Address] == nil {
-					r.minipoolWithdrawals[mpi.Address] = big.NewInt(0)
-				}
-				// Add the withdrawal amount
-				r.minipoolWithdrawals[mpi.Address].Add(r.minipoolWithdrawals[mpi.Address], withdrawalAmount)
-				withdrawalsLock.Unlock()
-			}
-			return nil
-		})
-	}
-	err := wg.Wait()
-	// Return preallocated memory to the pool if it exists
-	if committeeData != nil {
-		defer committeeData.Release()
-	}
-	if err != nil {
-		return fmt.Errorf("error getting committee and attestation records for epoch %d: %w", epoch, err)
-	}
-
-	if duringInterval {
-		// Get all of the expected duties for the epoch
-		err = r.getDutiesForEpoch(committeeData)
-		if err != nil {
-			return fmt.Errorf("error getting duties for epoch %d: %w", epoch, err)
-		}
+func (r *treeGeneratorImpl_v11) processEpoch(es *epochState) {
+	// Get all of the expected duties for the epoch
+	// Note: committees will be nil for the last epoch
+	if es.committees != nil {
+		r.getDutiesForEpoch(es.committees)
 	}
 
 	// Process all of the slots in the epoch
 	for i := uint64(0); i < r.slotsPerEpoch; i++ {
-		attestations := attestationsPerSlot[i]
-		if len(attestations) > 0 {
-			r.checkAttestations(attestations)
+
+		// The element will be nil if there was no block at the slot
+		if len(es.attestations[i]) > 0 {
+			// There was a block - process its attestations
+			r.checkAttestations(es.attestations[i])
 		}
 	}
 
-	return nil
+	if r.rewardsFile.RulesetVersion < 10 || !es.duringInterval {
+		return
+	}
 
+	for slot, withdrawals := range es.withdrawals {
+		slotTime := r.genesisTime.Add(time.Second * time.Duration(r.networkState.BeaconConfig.SecondsPerSlot*slot))
+		for _, withdrawal := range withdrawals {
+			indexUint, err := strconv.ParseUint(withdrawal.ValidatorIndex, 10, 64)
+			if err != nil {
+				panic(err)
+			}
+			// Ignore non-RP validators
+			mpi, exists := r.minipoolValidatorIndexMap[indexUint]
+			if !exists {
+				continue
+			}
+			nnd := r.networkState.NodeDetailsByAddress[mpi.Node.Address]
+			nmd := r.networkState.MinipoolDetailsByAddress[mpi.Address]
+
+			// Check that the node is opted into the SP during this slot
+			if !nnd.WasOptedInAt(slotTime) {
+				continue
+			}
+
+			// Check that the minipool's bond is eligible for bonuses at this slot
+			if eligible := nmd.IsEligibleForBonuses(slotTime); !eligible {
+				continue
+			}
+
+			// If the withdrawal is in or after the minipool's withdrawable epoch, adjust it.
+			withdrawalAmount := withdrawal.Amount
+			validatorInfo := r.networkState.MinipoolValidatorDetails[mpi.ValidatorPubkey]
+			if slot >= r.networkState.BeaconConfig.FirstSlotOfEpoch(validatorInfo.WithdrawableEpoch) {
+				// Subtract 32 ETH from the withdrawal amount
+				withdrawalAmount = big.NewInt(0).Sub(withdrawalAmount, thirtyTwoEth)
+				// max(withdrawalAmount, 0)
+				if withdrawalAmount.Sign() < 0 {
+					withdrawalAmount.SetInt64(0)
+				}
+			}
+
+			// Create the minipool's withdrawal sum big.Int if it doesn't exist
+			r.withdrawalsLock.Lock()
+			if r.minipoolWithdrawals[mpi.Address] == nil {
+				r.minipoolWithdrawals[mpi.Address] = big.NewInt(0)
+			}
+			// Add the withdrawal amount
+			r.minipoolWithdrawals[mpi.Address].Add(r.minipoolWithdrawals[mpi.Address], withdrawalAmount)
+			r.withdrawalsLock.Unlock()
+		}
+	}
+	return
 }
 
 func (r *treeGeneratorImpl_v11) checkAttestations(attestations []beacon.AttestationInfo) error {
@@ -1439,7 +1546,7 @@ func (r *treeGeneratorImpl_v11) getDutiesForEpoch(committees beacon.Committees) 
 func (r *treeGeneratorImpl_v11) createMegapoolIndexMap() error {
 
 	// Get the status for all uncached megapool validators and add them to the cache
-	r.megapoolValidatorIndexMap = map[string]*MegapoolInfo{}
+	r.megapoolValidatorIndexMap = map[uint64]*MegapoolInfo{}
 	for _, details := range r.nodeDetails {
 		if !details.IsEligible {
 			continue
@@ -1461,9 +1568,10 @@ func (r *treeGeneratorImpl_v11) createMegapoolIndexMap() error {
 				//r.log.Printlnf("NOTE: megapool %s (index %s, pubkey %s) was in state %s; removing it", megapoolInfo.Address.Hex(), status.Index, validatorInfo.Pubkey.Hex(), string(status.Status))
 				validatorInfo.WasActive = false
 			default:
+				idx, _ := strconv.ParseUint(status.Index, 10, 64)
 				// Get the validator index
-				validatorInfo.Index = status.Index
-				r.megapoolValidatorIndexMap[validatorInfo.Index] = details.Megapool
+				validatorInfo.Index = idx
+				r.megapoolValidatorIndexMap[idx] = details.Megapool
 
 				// Get the validator's activation start and end slots
 
@@ -1496,7 +1604,7 @@ func (r *treeGeneratorImpl_v11) createMegapoolIndexMap() error {
 func (r *treeGeneratorImpl_v11) createMinipoolIndexMap() error {
 
 	// Get the status for all uncached minipool validators and add them to the cache
-	r.minipoolValidatorIndexMap = map[string]*MinipoolInfo{}
+	r.minipoolValidatorIndexMap = map[uint64]*MinipoolInfo{}
 	for _, details := range r.nodeDetails {
 		if !details.IsEligible {
 			continue
@@ -1517,8 +1625,9 @@ func (r *treeGeneratorImpl_v11) createMinipoolIndexMap() error {
 				minipoolInfo.WasActive = false
 			default:
 				// Get the validator index
-				minipoolInfo.ValidatorIndex = status.Index
-				r.minipoolValidatorIndexMap[minipoolInfo.ValidatorIndex] = minipoolInfo
+				idx, _ := strconv.ParseUint(status.Index, 10, 64)
+				minipoolInfo.ValidatorIndex = idx
+				r.minipoolValidatorIndexMap[idx] = minipoolInfo
 
 				// Get the validator's activation start and end slots
 				startSlot := status.ActivationEpoch * r.beaconConfig.SlotsPerEpoch
@@ -1629,7 +1738,7 @@ func (r *treeGeneratorImpl_v11) getSmoothingPoolNodeDetails() error {
 						Address:              megapoolAddress,
 						Node:                 nodeDetails,
 						Validators:           []*MegapoolValidatorInfo{},
-						ValidatorIndexMap:    make(map[string]*MegapoolValidatorInfo),
+						ValidatorIndexMap:    make(map[uint64]*MegapoolValidatorInfo),
 						ActiveValidatorCount: nativeMegapoolDetails.ActiveValidatorCount,
 					}
 
@@ -1639,6 +1748,8 @@ func (r *treeGeneratorImpl_v11) getSmoothingPoolNodeDetails() error {
 							continue
 						}
 
+						idx, _ := strconv.ParseUint(status.Index, 10, 64)
+
 						nativeValidatorInfo, exists := r.networkState.MegapoolValidatorInfo[validator]
 						if !exists {
 							continue
@@ -1646,7 +1757,7 @@ func (r *treeGeneratorImpl_v11) getSmoothingPoolNodeDetails() error {
 
 						v := &MegapoolValidatorInfo{
 							Pubkey:                  validator,
-							Index:                   status.Index,
+							Index:                   idx,
 							MissingAttestationSlots: map[uint64]bool{},
 							AttestationScore:        NewQuotedBigInt(0),
 							CompletedAttestations:   map[uint64]bool{},

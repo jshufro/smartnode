@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/rocket-pool/smartnode/shared/services/beacon"
 )
 
@@ -92,8 +94,9 @@ func NewCriticalDutiesSlots(criticalDutiesEpochs *CriticalDutiesEpochs, bc beaco
 		for i := 0; i < committees.Count(); i++ {
 			validators := committees.Validators(i)
 			for _, validator := range validators {
-				if _, ok := validatorIndicesSet[validator]; ok {
-					criticalDuties.CriticalDuties[validator] = append(criticalDuties.CriticalDuties[validator], committees.Slot(i))
+				vString := fmt.Sprint(validator)
+				if _, ok := validatorIndicesSet[vString]; ok {
+					criticalDuties.CriticalDuties[vString] = append(criticalDuties.CriticalDuties[vString], committees.Slot(i))
 				}
 			}
 		}
