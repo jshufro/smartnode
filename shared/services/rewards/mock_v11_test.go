@@ -54,7 +54,7 @@ func TestMockIntervalDefaultsTreegenv11(tt *testing.T) {
 	for _, validator := range state.MinipoolValidatorDetails {
 		t.bc.SetMinipoolPerformance(validator.Index, make([]uint64, 0))
 	}
-	for _, validator := range state.MegapoolValidatorGlobalIndex {
+	for _, validator := range state.MegapoolValidators {
 		pubkey := rptypes.BytesToValidatorPubkey(validator.Pubkey)
 		details := state.MegapoolValidatorDetails[pubkey]
 		t.bc.SetMinipoolPerformance(details.Index, make([]uint64, 0))
@@ -847,7 +847,7 @@ func TestInsufficientEthForBonusesesV11(tt *testing.T) {
 	odaoNodes := history.GetDefaultMockODAONodes()
 	history.Nodes = append(history.Nodes, odaoNodes...)
 
-	// Ovewrite the SP balance to a value under the bonus commission
+	// Overwrite the SP balance to a value under the bonus commission
 	history.NetworkDetails.SmoothingPoolBalance = big.NewInt(1100)
 	// Set the SP voter share to 0
 	history.NetworkDetails.PendingVoterShareEth = big.NewInt(100)
