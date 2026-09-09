@@ -8,10 +8,10 @@ import (
 
 // Conversion factors
 const (
-	WeiPerEth      float64 = 1e18
-	WeiPerGwei     float64 = 1e9
-	WeiPerMilliEth float64 = 1e15
-	GweiPerEth     float64 = 1e9
+	weiPerEth      float64 = 1e18
+	weiPerGwei     float64 = 1e9
+	weiPerMilliEth float64 = 1e15
+	gweiPerEth     float64 = 1e9
 )
 
 // Convert wei to eth
@@ -22,7 +22,7 @@ func WeiToEth(wei *big.Int) float64 {
 	var weiFloat big.Float
 	var eth big.Float
 	weiFloat.SetInt(wei)
-	eth.Quo(&weiFloat, big.NewFloat(WeiPerEth))
+	eth.Quo(&weiFloat, big.NewFloat(weiPerEth))
 	eth64, _ := eth.Float64()
 	return eth64
 }
@@ -33,7 +33,7 @@ func EthToWei(eth float64) *big.Int {
 	var weiFloat big.Float
 	var wei big.Int
 	ethFloat.SetString(strconv.FormatFloat(eth, 'f', -1, 64))
-	weiFloat.Mul(&ethFloat, big.NewFloat(WeiPerEth))
+	weiFloat.Mul(&ethFloat, big.NewFloat(weiPerEth))
 	weiFloat.Int(&wei)
 	return &wei
 }
@@ -46,9 +46,21 @@ func WeiToGwei(wei *big.Int) float64 {
 	var weiFloat big.Float
 	var gwei big.Float
 	weiFloat.SetInt(wei)
-	gwei.Quo(&weiFloat, big.NewFloat(WeiPerGwei))
+	gwei.Quo(&weiFloat, big.NewFloat(weiPerGwei))
 	gwei64, _ := gwei.Float64()
 	return gwei64
+}
+
+func WeiToGweiBig(wei *big.Int) *big.Int {
+	if wei == nil {
+		return big.NewInt(0)
+	}
+	return new(big.Int).Div(wei, big.NewInt(int64(weiPerGwei)))
+}
+
+func GweiUintToWei(gwei uint64) *big.Int {
+	out := new(big.Int).SetUint64(gwei)
+	return out.Mul(out, big.NewInt(int64(weiPerGwei)))
 }
 
 // Convert gigawei to wei
@@ -57,18 +69,13 @@ func GweiToWei(gwei float64) *big.Int {
 	var weiFloat big.Float
 	var wei big.Int
 	gweiFloat.SetString(strconv.FormatFloat(gwei, 'f', -1, 64))
-	weiFloat.Mul(&gweiFloat, big.NewFloat(WeiPerGwei))
+	weiFloat.Mul(&gweiFloat, big.NewFloat(weiPerGwei))
 	weiFloat.Int(&wei)
 	return &wei
 }
 
-func GweiToEth(gwei uint64) float64 {
-	var gweiFloat big.Float
-	var eth big.Float
-	gweiFloat.SetUint64(gwei)
-	eth.Quo(&gweiFloat, big.NewFloat(GweiPerEth))
-	eth64, _ := eth.Float64()
-	return eth64
+func GweiToEth(gwei float64) float64 {
+	return gwei / gweiPerEth
 }
 
 // Convert milliEth to wei
@@ -77,7 +84,7 @@ func MilliEthToWei(milliEth float64) *big.Int {
 	var weiFloat big.Float
 	var wei big.Int
 	milliEthFloat.SetString(strconv.FormatFloat(milliEth, 'f', -1, 64))
-	weiFloat.Mul(&milliEthFloat, big.NewFloat(WeiPerMilliEth))
+	weiFloat.Mul(&milliEthFloat, big.NewFloat(weiPerMilliEth))
 	weiFloat.Int(&wei)
 	return &wei
 }

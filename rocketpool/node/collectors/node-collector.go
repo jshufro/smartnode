@@ -837,7 +837,7 @@ func (collector *NodeCollector) Collect(channel chan<- prometheus.Metric) {
 	for _, minipool := range minipools {
 		validator, exists := state.MinipoolValidatorDetails[minipool.Pubkey]
 		if exists {
-			totalBeaconBalance += units.GweiToEth(validator.Balance)
+			totalBeaconBalance += units.GweiToEth(float64(validator.Balance))
 		}
 		totalDepositBalance += units.WeiToEth(minipool.NodeDepositBalance)
 		totalNodeShare += units.WeiToEth(minipool.NodeShareOfBeaconBalance)

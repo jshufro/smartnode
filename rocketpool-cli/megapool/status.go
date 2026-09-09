@@ -224,7 +224,7 @@ func printValidatorDetails(validator api.MegapoolValidatorDetails, status string
 		fmt.Printf("Validator active:             no\n")
 	}
 
-	beaconBalance := math.RoundDown(units.WeiToEth(big.NewInt(int64(validator.BeaconStatus.Balance*uint64(units.WeiPerGwei)))), 6)
+	beaconBalance := math.RoundDown(units.GweiToEth(float64(validator.BeaconStatus.Balance)), 6)
 
 	if status == "Staking" {
 		fmt.Printf("Megapool Validator ID:        %d\n", validator.ValidatorId)

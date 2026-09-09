@@ -29,7 +29,7 @@ const (
 	soloMigrationCheckThreshold float64 = 0.85 // Fraction of PromotionStakePeriod that can go before a minipool gets scrubbed for not having changed to 0x01
 	blsPrefix                   byte    = 0x00
 	elPrefix                    byte    = 0x01
-	migrationBalanceBuffer      float64 = 0.01
+	migrationBalanceBuffer      uint64  = 0.01 * 1e9 // 0.01 ETH in gwei
 )
 
 type checkSoloMigrations struct {
@@ -158,7 +158,6 @@ func (t *checkSoloMigrations) checkSoloMigrations(state *state.NetworkStateIndex
 
 	// Go through each minipool
 	threshold := uint64(32000000000)
-	buffer := uint64(migrationBalanceBuffer * units.WeiPerGwei)
 	for _, mpd := range state.MinipoolDetails {
 		if mpd.Status == types.Dissolved {
 			// Ignore minipools that are already dissolved
@@ -224,8 +223,8 @@ func (t *checkSoloMigrations) checkSoloMigrations(state *state.NetworkStateIndex
 			balanceTooLowCount++
 			continue
 		}
-		if currentBalance < (creationBalanceGwei - buffer) {
-			t.scrubVacantMinipool(mpd.MinipoolAddress, fmt.Sprintf("current balance of %d is lower than the creation balance of %d, and below the acceptable buffer threshold of %d", currentBalance, creationBalanceGwei, buffer))
+		if currentBalance < (creationBalanceGwei - migrationBalanceBuffer) {
+			t.scrubVacantMinipool(mpd.MinipoolAddress, fmt.Sprintf("current balance of %d is lower than the creation balance of %d, and below the acceptable buffer threshold of %d", currentBalance, creationBalanceGwei, migrationBalanceBuffer))
 			balanceTooLowCount++
 			continue
 		}

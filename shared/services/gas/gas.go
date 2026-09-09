@@ -38,13 +38,20 @@ func (g *Gas) Assign(rp *rpsvc.Client) {
 	rp.AssignGasSettings(g.maxFeeGwei, g.maxPriorityFeeGwei, g.gasLimit)
 }
 
+func maxCostFromLimit(maxFeeGwei float64, limit uint64) float64 {
+	maxFeeWei := units.GweiToWei(maxFeeGwei)
+	maxCostWei := maxFeeWei.Mul(maxFeeWei, big.NewInt(int64(limit)))
+	return units.WeiToEth(maxCostWei)
+}
+
 // GetMaxGasCostEth returns the maximum possible gas cost in ETH for the given gas info,
+// TODO return a big.Int/ETH type alias instead of a float64
 func (g *Gas) GetMaxGasCostEth(gasLimits gaslimit.Limits) float64 {
 	limit := uint64(float64(gasLimits.Estimated) * 1.1)
 	if g.gasLimit != 0 {
 		limit = g.gasLimit
 	}
-	return g.maxFeeGwei / units.WeiPerGwei * float64(limit)
+	return maxCostFromLimit(g.maxFeeGwei, limit)
 }
 
 func GetMaxFeeAndLimit(gasLimits gaslimit.Limits, rp *rpsvc.Client, headless bool) (Gas, error) {
@@ -86,10 +93,10 @@ func GetMaxFeeAndLimit(gasLimits gaslimit.Limits, rp *rpsvc.Client, headless boo
 		var lowLimit float64
 		var highLimit float64
 		if gasLimit == 0 {
-			lowLimit = maxFeeGwei / units.WeiPerGwei * float64(gasLimits.Estimated)
-			highLimit = maxFeeGwei / units.WeiPerGwei * float64(gasLimits.Safe)
+			lowLimit = maxCostFromLimit(maxFeeGwei, gasLimits.Estimated)
+			highLimit = maxCostFromLimit(maxFeeGwei, gasLimits.Safe)
 		} else {
-			lowLimit = maxFeeGwei / units.WeiPerGwei * float64(gasLimit)
+			lowLimit = maxCostFromLimit(maxFeeGwei, gasLimit)
 			highLimit = lowLimit
 		}
 		color.YellowPrintf("Total cost: %.4f to %.4f ETH\n", lowLimit, highLimit)
@@ -180,7 +187,7 @@ func GetHeadlessMaxFeeWeiWithLatestBlock(cfg *config.RocketPoolConfig, rp *rocke
 func handleEtherscanGasPrices(gasSuggestion etherscan.GasFeeSuggestion, gasLimits gaslimit.Limits, priorityFee float64, gasLimit uint64) float64 {
 
 	fastGwei := gasSuggestion.FastGwei + priorityFee
-	fastEth := fastGwei / units.WeiPerGwei
+	fastEth := units.GweiToEth(fastGwei)
 
 	var fastLowLimit float64
 	var fastHighLimit float64
@@ -193,7 +200,7 @@ func handleEtherscanGasPrices(gasSuggestion etherscan.GasFeeSuggestion, gasLimit
 	}
 
 	standardGwei := gasSuggestion.StandardGwei + priorityFee
-	standardEth := standardGwei / units.WeiPerGwei
+	standardEth := units.GweiToEth(standardGwei)
 
 	var standardLowLimit float64
 	var standardHighLimit float64
@@ -206,7 +213,7 @@ func handleEtherscanGasPrices(gasSuggestion etherscan.GasFeeSuggestion, gasLimit
 	}
 
 	slowGwei := gasSuggestion.SlowGwei + priorityFee
-	slowEth := slowGwei / units.WeiPerGwei
+	slowEth := units.GweiToEth(slowGwei)
 
 	var slowLowLimit float64
 	var slowHighLimit float64

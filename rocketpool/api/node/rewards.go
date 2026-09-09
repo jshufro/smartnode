@@ -302,9 +302,8 @@ func getRewards(c *cli.Command) (*api.NodeRewardsResponse, error) {
 
 			megapoolReward := big.NewInt(0)
 			if totalBeaconBalance > totalEffectiveBeaconBalance {
-				weiPerGwei := big.NewInt(int64(units.WeiPerGwei))
-				totalBeaconBalanceWei := new(big.Int).Mul(new(big.Int).SetUint64(totalBeaconBalance), weiPerGwei)
-				totalEffectiveBeaconBalanceWei := new(big.Int).Mul(new(big.Int).SetUint64(totalEffectiveBeaconBalance), weiPerGwei)
+				totalBeaconBalanceWei := units.GweiUintToWei(totalBeaconBalance)
+				totalEffectiveBeaconBalanceWei := units.GweiUintToWei(totalEffectiveBeaconBalance)
 				toBeSkimmed := new(big.Int).Sub(totalBeaconBalanceWei, totalEffectiveBeaconBalanceWei)
 
 				rewardSplit, err := services.CalculateRewards(rp, toBeSkimmed, nodeAccount.Address)

@@ -371,7 +371,6 @@ func (t *submitScrubMinipools) verifyPrestakeEvents() {
 
 	minipoolsToScrub := []minipool.Minipool{}
 
-	weiPerGwei := big.NewInt(int64(units.WeiPerGwei))
 	for minipool := range t.it.minipools {
 		// Get the MinipoolPrestaked event
 		prestakeData, err := minipool.GetPrestakeEvent(t.it.eventLogInterval, nil)
@@ -381,7 +380,7 @@ func (t *submitScrubMinipools) verifyPrestakeEvents() {
 		}
 
 		// Convert the amount to gwei
-		prestakeData.Amount.Div(prestakeData.Amount, weiPerGwei)
+		prestakeData.Amount = units.WeiToGweiBig(prestakeData.Amount)
 
 		// Convert it into Prysm's deposit data struct
 		depositData := new(ethpb.Deposit_Data)

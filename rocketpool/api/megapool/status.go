@@ -236,11 +236,8 @@ func getValidatorMapAndBalances(c *cli.Command) (*api.MegapoolValidatorMapAndRew
 	// Store map in the api response
 	response.MegapoolValidatorMap = statusValidators
 
-	weiPerGwei := big.NewInt(int64(units.WeiPerGwei))
-	totalBeaconBalanceWei := new(big.Int).SetUint64(totalBeaconBalance)
-	totalEffectiveBeaconBalanceWei := new(big.Int).SetUint64(totalEffectiveBeaconBalance)
-	totalBeaconBalanceWei = totalBeaconBalanceWei.Mul(totalBeaconBalanceWei, weiPerGwei)
-	totalEffectiveBeaconBalanceWei = totalEffectiveBeaconBalanceWei.Mul(totalEffectiveBeaconBalanceWei, weiPerGwei)
+	totalBeaconBalanceWei := units.GweiUintToWei(totalBeaconBalance)
+	totalEffectiveBeaconBalanceWei := units.GweiUintToWei(totalEffectiveBeaconBalance)
 
 	// Get the node share of CL rewards
 	nodeShareOfCLBalance := big.NewInt(0)

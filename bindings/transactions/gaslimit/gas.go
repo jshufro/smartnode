@@ -31,11 +31,12 @@ func (l Limits) Check(checkThreshold bool, gasThresholdGwei float64, logger *log
 		return true
 	}
 
-	gasThresholdWei := math.RoundUp(gasThresholdGwei*units.WeiPerGwei, 0)
-	gasThreshold := new(big.Int).SetUint64(uint64(gasThresholdWei))
+	// Round up to a whole wei so fractional thresholds are not truncated below the configured value.
+	// TODO: replace with real unit types
+	gasThreshold := new(big.Int).SetUint64(uint64(math.RoundUp(gasThresholdGwei*1e9, 0)))
 	if maxFeeWei.Cmp(gasThreshold) != -1 {
 		logger.Printlnf("Current network gas price is %.2f Gwei, which is not lower than the set threshold of %.2f Gwei. "+
-			"Aborting the transaction.", units.WeiToGwei(maxFeeWei), gasThresholdGwei)
+			"Aborting the transaction.", units.WeiToGwei(maxFeeWei), units.WeiToGwei(gasThreshold))
 		return false
 	}
 
