@@ -17,16 +17,16 @@ const (
 )
 
 // RPL inflation rate per interval
-func GetInflationIntervalRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetInflationIntervalRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	inflationSettingsContract, err := getInflationSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := inflationSettingsContract.Call(opts, value, "getInflationIntervalRate"); err != nil {
-		return 0, fmt.Errorf("error getting inflation rate: %w", err)
+		return nil, fmt.Errorf("error getting inflation rate: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // RPL inflation rate per interval

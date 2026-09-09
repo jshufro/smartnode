@@ -54,9 +54,9 @@ type NetworkDetails struct {
 	RPLTotalSupply                    *big.Int               `json:"rpl_total_supply"`
 	PricesBlock                       uint64                 `json:"prices_block"`
 	LatestReportablePricesBlock       uint64                 `json:"latest_reportable_prices_block"`
-	ETHUtilizationRate                float64                `json:"eth_utilization_rate"`
+	ETHUtilizationRate                *units.Eth             `json:"eth_utilization_rate"`
 	StakingETHBalance                 *big.Int               `json:"staking_eth_balance"`
-	RETHExchangeRate                  float64                `json:"reth_exchange_rate"`
+	RETHExchangeRate                  *units.Eth             `json:"reth_exchange_rate"`
 	TotalETHBalance                   *big.Int               `json:"total_eth_balance"`
 	RETHBalance                       *big.Int               `json:"reth_balance"`
 	TotalRETHSupply                   *big.Int               `json:"total_reth_supply"`
@@ -65,7 +65,7 @@ type NetworkDetails struct {
 	TotalLegacyStakedRpl              *big.Int               `json:"total_legacy_staked_rpl"`
 	SmoothingPoolBalance              *big.Int               `json:"smoothing_pool_balance"`
 	PendingVoterShare                 *big.Int               `json:"pending_voter_share"`
-	NodeFee                           float64                `json:"node_fee"`
+	NodeFee                           *units.Eth             `json:"node_fee"`
 	BalancesBlock                     uint64                 `json:"balances_block"`
 	LatestReportableBalancesBlock     uint64                 `json:"latest_reportable_balances_block"`
 	SubmitBalancesEnabled             bool                   `json:"submit_balances_enabled"`
@@ -203,9 +203,9 @@ func NewNetworkDetails(rp *rocketpool.RocketPool, contracts *NetworkContracts) (
 
 	details.PricesSubmissionFrequency = pricesSubmissionFrequency.Uint64()
 	details.BalancesSubmissionFrequency = balancesSubmissionFrequency.Uint64()
-	details.ETHUtilizationRate = units.WeiToEth(ethUtilizationRate)
-	details.RETHExchangeRate = units.WeiToEth(rETHExchangeRate)
-	details.NodeFee = units.WeiToEth(nodeFee)
+	details.ETHUtilizationRate = units.NewWei(ethUtilizationRate).ToEth()
+	details.RETHExchangeRate = units.NewWei(rETHExchangeRate).ToEth()
+	details.NodeFee = units.NewWei(nodeFee).ToEth()
 	details.BalancesBlock = balancesBlock.Uint64()
 	details.MinipoolLaunchTimeout = minipoolLaunchTimeout
 	details.PromotionScrubPeriod = convertToDuration(promotionScrubPeriodSeconds)

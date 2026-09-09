@@ -43,16 +43,16 @@ const (
 )
 
 // The threshold of trusted nodes that must reach consensus on oracle data to commit it
-func GetNodeConsensusThreshold(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetNodeConsensusThreshold(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getNodeConsensusThreshold"); err != nil {
-		return 0, fmt.Errorf("error getting trusted node consensus threshold: %w", err)
+		return nil, fmt.Errorf("error getting trusted node consensus threshold: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // The threshold of trusted nodes that must reach consensus on oracle data to commit it
@@ -151,16 +151,16 @@ func EstimateProposeSubmitPricesFrequencyGas(rp *rocketpool.RocketPool, value *b
 }
 
 // Minimum node commission rate
-func GetMinimumNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetMinimumNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getMinimumNodeFee"); err != nil {
-		return 0, fmt.Errorf("error getting minimum node fee: %w", err)
+		return nil, fmt.Errorf("error getting minimum node fee: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // Minimum node commission rate
@@ -183,16 +183,16 @@ func EstimateProposeMinimumNodeFeeGas(rp *rocketpool.RocketPool, value *big.Int,
 }
 
 // Target node commission rate
-func GetTargetNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetTargetNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getTargetNodeFee"); err != nil {
-		return 0, fmt.Errorf("error getting target node fee: %w", err)
+		return nil, fmt.Errorf("error getting target node fee: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // Target node commission rate
@@ -215,16 +215,16 @@ func EstimateProposeTargetNodeFeeGas(rp *rocketpool.RocketPool, value *big.Int, 
 }
 
 // Maximum node commission rate
-func GetMaximumNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetMaximumNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getMaximumNodeFee"); err != nil {
-		return 0, fmt.Errorf("error getting maximum node fee: %w", err)
+		return nil, fmt.Errorf("error getting maximum node fee: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // Maximum node commission rate
@@ -266,16 +266,16 @@ func EstimateProposeNodeFeeDemandRangeGas(rp *rocketpool.RocketPool, value *big.
 }
 
 // The target collateralization rate for the rETH contract as a fraction
-func GetTargetRethCollateralRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetTargetRethCollateralRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getTargetRethCollateralRate"); err != nil {
-		return 0, fmt.Errorf("error getting target rETH contract collateralization rate: %w", err)
+		return nil, fmt.Errorf("error getting target rETH contract collateralization rate: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // The target collateralization rate for the rETH contract as a fraction
@@ -298,16 +298,16 @@ func EstimateProposeTargetRethCollateralRateGas(rp *rocketpool.RocketPool, value
 }
 
 // The number of oDAO members that have to vote for a penalty expressed as a percentage
-func GetNetworkPenaltyThreshold(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetNetworkPenaltyThreshold(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getNodePenaltyThreshold"); err != nil {
-		return 0, fmt.Errorf("error getting network penalty threshold: %w", err)
+		return nil, fmt.Errorf("error getting network penalty threshold: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // The number of oDAO members that have to vote for a penalty expressed as a percentage
@@ -330,16 +330,16 @@ func EstimateProposeNetworkPenaltyThresholdGas(rp *rocketpool.RocketPool, value 
 }
 
 // The amount a node operator is penalised for each penalty as a percentage
-func GetNetworkPenaltyPerRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetNetworkPenaltyPerRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := networkSettingsContract.Call(opts, value, "getPerPenaltyRate"); err != nil {
-		return 0, fmt.Errorf("error getting network penalty per rate: %w", err)
+		return nil, fmt.Errorf("error getting network penalty per rate: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // The amount a node operator is penalised for each penalty as a percentage

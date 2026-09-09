@@ -14,6 +14,7 @@ import (
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/types"
 	"github.com/rocket-pool/smartnode/bindings/utils/multicall"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 const (
@@ -35,9 +36,9 @@ type NativeMinipoolDetails struct {
 	Finalised               bool                  `json:"finalised"`
 	DepositTypeRaw          uint8                 `json:"deposit_type_raw"`
 	NodeFee                 *big.Int              `json:"node_fee"`
-	NodeDepositBalance      *big.Int              `json:"node_deposit_balance"`
+	NodeDepositBalance      *units.Wei            `json:"node_deposit_balance"`
 	NodeDepositAssigned     bool                  `json:"node_deposit_assigned"`
-	UserDepositBalance      *big.Int              `json:"user_deposit_balance"`
+	UserDepositBalance      *units.Wei            `json:"user_deposit_balance"`
 	UserDepositAssigned     bool                  `json:"user_deposit_assigned"`
 	UserDepositAssignedTime *big.Int              `json:"user_deposit_assigned_time"`
 	UseLatestDelegate       bool                  `json:"use_latest_delegate"`
@@ -48,11 +49,11 @@ type NativeMinipoolDetails struct {
 	PenaltyRate             *big.Int              `json:"penalty_rate"`
 	NodeAddress             common.Address        `json:"node_address"`
 	Version                 uint8                 `json:"version"`
-	Balance                 *big.Int              `json:"balance"`
-	DistributableBalance    *big.Int              `json:"distributable_balance"`
-	NodeShareOfBalance      *big.Int              `json:"node_share_of_balance"` // Result of calculateNodeShare(contract balance)
-	UserShareOfBalance      *big.Int              `json:"user_share_of_balance"` // Result of calculateUserShare(contract balance)
-	NodeRefundBalance       *big.Int              `json:"node_refund_balance"`
+	Balance                 *units.Wei            `json:"balance"`
+	DistributableBalance    *units.Wei            `json:"distributable_balance"`
+	NodeShareOfBalance      *units.Wei            `json:"node_share_of_balance"` // Result of calculateNodeShare(contract balance)
+	UserShareOfBalance      *units.Wei            `json:"user_share_of_balance"` // Result of calculateUserShare(contract balance)
+	NodeRefundBalance       *units.Wei            `json:"node_refund_balance"`
 	WithdrawalCredentials   common.Hash           `json:"withdrawal_credentials"`
 	Status                  types.MinipoolStatus  `json:"status"`
 	DepositType             types.MinipoolDeposit `json:"deposit_type"`
@@ -202,7 +203,7 @@ func CalculateCompleteMinipoolShares(rp *rocketpool.RocketPool, contracts *Netwo
 				// Calculate the Beacon shares
 				beaconBalance := big.NewInt(0).Set(beaconBalances[j])
 				if beaconBalance.Sign() > 0 {
-					err = mc.AddCall(mpContract, &details.NodeShareOfBeaconBalance, "calculateNodeShare", beaconBalance)
+					err = mc.AddCall(mpContract, &details.NodeShareOfBeaconBalance.Int, "calculateNodeShare", beaconBalance)
 					if err != nil {
 						return fmt.Errorf("error adding node share of beacon balance call: %w", err)
 					}
@@ -216,6 +217,7 @@ func CalculateCompleteMinipoolShares(rp *rocketpool.RocketPool, contracts *Netwo
 				}
 
 				// Calculate the total balance
+				totalBalance := units.NewWei(beaconBalances[j])
 				totalBalance := big.NewInt(0).Set(beaconBalances[j])      // Total balance = beacon balance
 				totalBalance.Add(totalBalance, details.Balance)           // Add contract balance
 				totalBalance.Sub(totalBalance, details.NodeRefundBalance) // Remove node refund
@@ -540,9 +542,9 @@ func addMinipoolDetailsCalls(rp *rocketpool.RocketPool, contracts *NetworkContra
 	addCall(mpContract, &details.StatusTime, "getStatusTime")
 	addCall(mpContract, &details.Finalised, "getFinalised")
 	addCall(mpContract, &details.NodeFee, "getNodeFee")
-	addCall(mpContract, &details.NodeDepositBalance, "getNodeDepositBalance")
+	addCall(mpContract, &details.NodeDepositBalance.Int, "getNodeDepositBalance")
 	addCall(mpContract, &details.NodeDepositAssigned, "getNodeDepositAssigned")
-	addCall(mpContract, &details.UserDepositBalance, "getUserDepositBalance")
+	addCall(mpContract, &details.UserDepositBalance.Int, "getUserDepositBalance")
 	addCall(mpContract, &details.UserDepositAssigned, "getUserDepositAssigned")
 	addCall(mpContract, &details.UserDepositAssignedTime, "getUserDepositAssignedTime")
 	addCall(mpContract, &details.UseLatestDelegate, "getUseLatestDelegate")
@@ -550,7 +552,7 @@ func addMinipoolDetailsCalls(rp *rocketpool.RocketPool, contracts *NetworkContra
 	addCall(mpContract, &details.PreviousDelegate, "getPreviousDelegate")
 	addCall(mpContract, &details.EffectiveDelegate, "getEffectiveDelegate")
 	addCall(mpContract, &details.NodeAddress, "getNodeAddress")
-	addCall(mpContract, &details.NodeRefundBalance, "getNodeRefundBalance")
+	addCall(mpContract, &details.NodeRefundBalance.Int, "getNodeRefundBalance")
 
 	if details.Version < 3 {
 		// These fields are all v3+ only

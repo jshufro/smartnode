@@ -9,6 +9,7 @@ import (
 
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 //
@@ -25,12 +26,16 @@ func GetFixedSupplyRPLTotalSupply(rp *rocketpool.RocketPool, opts *bind.CallOpts
 }
 
 // Get fixed-supply RPL balance
-func GetFixedSupplyRPLBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetFixedSupplyRPLBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*units.Wei, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, opts)
 	if err != nil {
 		return nil, err
 	}
-	return balanceOf(rocketTokenFixedSupplyRPL, "fixed-supply RPL", address, opts)
+	b, err := balanceOf(rocketTokenFixedSupplyRPL, "fixed-supply RPL", address, opts)
+	if err != nil {
+		return nil, err
+	}
+	return units.NewWei(b), nil
 }
 
 // Get fixed-supply RPL allowance

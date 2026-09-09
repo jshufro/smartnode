@@ -96,7 +96,7 @@ func getSufficientRemainingRPLForLot(rp *rocketpool.RocketPool) (bool, error) {
 	// Calculate lot minimum RPL amount
 	var tmp big.Int
 	var lotMinimumRplAmount big.Int
-	tmp.Mul(lotMinimumEthValue, units.EthToWei(1))
+	tmp.Mul(lotMinimumEthValue, units.OneEthBig)
 	lotMinimumRplAmount.Quo(&tmp, rplPrice)
 
 	// Return

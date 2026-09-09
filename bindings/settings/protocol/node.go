@@ -106,16 +106,16 @@ func EstimateProposeVacantMinipoolsEnabledGas(rp *rocketpool.RocketPool, value b
 }
 
 // The amount of legacy staked RPL required by a node after unstaking as percentage of their borrowed ETH
-func GetMinimumLegacyRPLStake(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetMinimumLegacyRPLStake(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	nodeSettingsContract, err := getNodeSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := nodeSettingsContract.Call(opts, value, "getMinimumLegacyRPLStake"); err != nil {
-		return 0, fmt.Errorf("error getting minimum legacy RPL stake per node: %w", err)
+		return nil, fmt.Errorf("error getting minimum legacy RPL stake per node: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 func ProposeMinimumLecacyRPLStake(rp *rocketpool.RocketPool, value *big.Int, blockNumber uint32, treeNodes []types.VotingTreeNode, opts *bind.TransactOpts) (uint64, common.Hash, error) {
 	return protocol.ProposeSetUint(rp, fmt.Sprintf("set %s", MinimumLegacyRplStakePath), NodeSettingsContractName, MinimumLegacyRplStakePath, value, blockNumber, treeNodes, opts)
@@ -138,16 +138,16 @@ func GetMinimumLegacyRPLStakeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts)
 }
 
 // Get the `reduced_bond` variable used in bond requirements calculation as ETH
-func GetReducedBond(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetReducedBond(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	nodeSettingsContract, err := getNodeSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := nodeSettingsContract.Call(opts, value, "getReducedBond"); err != nil {
-		return 0, fmt.Errorf("error getting reduced bond variable: %w", err)
+		return nil, fmt.Errorf("error getting reduced bond variable: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 func ProposeReducedBond(rp *rocketpool.RocketPool, value *big.Int, blockNumber uint32, treeNodes []types.VotingTreeNode, opts *bind.TransactOpts) (uint64, common.Hash, error) {
 	return protocol.ProposeSetUint(rp, fmt.Sprintf("set %s", ReducedBondSettingPath), NodeSettingsContractName, ReducedBondSettingPath, value, blockNumber, treeNodes, opts)

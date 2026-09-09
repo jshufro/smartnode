@@ -27,12 +27,16 @@ func GetRETHTotalSupply(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.In
 }
 
 // Get rETH balance
-func GetRETHBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetRETHBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*units.Wei, error) {
 	rocketTokenRETH, err := getRocketTokenRETH(rp, opts)
 	if err != nil {
 		return nil, err
 	}
-	return balanceOf(rocketTokenRETH, "rETH", address, opts)
+	b, err := balanceOf(rocketTokenRETH, "rETH", address, opts)
+	if err != nil {
+		return nil, err
+	}
+	return units.NewWei(b), nil
 }
 
 // Get rETH allowance
@@ -103,7 +107,7 @@ func TransferFromRETH(rp *rocketpool.RocketPool, from, to common.Address, amount
 //
 
 // Get the rETH contract ETH balance
-func GetRETHContractETHBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetRETHContractETHBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Wei, error) {
 	rocketTokenRETH, err := getRocketTokenRETH(rp, opts)
 	if err != nil {
 		return nil, err
@@ -138,16 +142,16 @@ func GetRETHValueOfETH(rp *rocketpool.RocketPool, ethAmount *big.Int, opts *bind
 }
 
 // Get the current ETH : rETH exchange rate
-func GetRETHExchangeRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetRETHExchangeRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	rocketTokenRETH, err := getRocketTokenRETH(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	exchangeRate := new(*big.Int)
 	if err := rocketTokenRETH.Call(opts, exchangeRate, "getExchangeRate"); err != nil {
-		return 0, fmt.Errorf("error getting rETH exchange rate: %w", err)
+		return nil, fmt.Errorf("error getting rETH exchange rate: %w", err)
 	}
-	return units.WeiToEth(*exchangeRate), nil
+	return units.NewWei(*exchangeRate).ToEth(), nil
 }
 
 // Get the total amount of ETH collateral available for rETH trades
@@ -164,16 +168,16 @@ func GetRETHTotalCollateral(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*bi
 }
 
 // Get the rETH collateralization rate
-func GetRETHCollateralRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetRETHCollateralRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	rocketTokenRETH, err := getRocketTokenRETH(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	collateralRate := new(*big.Int)
 	if err := rocketTokenRETH.Call(opts, collateralRate, "getCollateralRate"); err != nil {
-		return 0, fmt.Errorf("error getting rETH collateral rate: %w", err)
+		return nil, fmt.Errorf("error getting rETH collateral rate: %w", err)
 	}
-	return units.WeiToEth(*collateralRate), nil
+	return units.NewWei(*collateralRate).ToEth(), nil
 }
 
 // Estimate the gas of BurnRETH

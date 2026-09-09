@@ -124,16 +124,16 @@ func EstimateProposeLotDurationGas(rp *rocketpool.RocketPool, value *big.Int, bl
 }
 
 // The starting price relative to current ETH price, as a fraction
-func GetLotStartingPriceRatio(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetLotStartingPriceRatio(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	auctionSettingsContract, err := getAuctionSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := auctionSettingsContract.Call(opts, value, "getStartingPriceRatio"); err != nil {
-		return 0, fmt.Errorf("error getting lot starting price ratio: %w", err)
+		return nil, fmt.Errorf("error getting lot starting price ratio: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // The starting price relative to current ETH price, as a fraction
@@ -156,16 +156,16 @@ func EstimateProposeLotStartingPriceRatioGas(rp *rocketpool.RocketPool, value *b
 }
 
 // The reserve price relative to current ETH price, as a fraction
-func GetLotReservePriceRatio(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetLotReservePriceRatio(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	auctionSettingsContract, err := getAuctionSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := auctionSettingsContract.Call(opts, value, "getReservePriceRatio"); err != nil {
-		return 0, fmt.Errorf("error getting lot reserve price ratio: %w", err)
+		return nil, fmt.Errorf("error getting lot reserve price ratio: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
 
 // The reserve price relative to current ETH price, as a fraction

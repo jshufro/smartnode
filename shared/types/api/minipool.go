@@ -11,6 +11,7 @@ import (
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
 	"github.com/rocket-pool/smartnode/bindings/types"
 	"github.com/rocket-pool/smartnode/shared/services/beacon"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 type MinipoolStatusResponse struct {
@@ -134,11 +135,11 @@ type MinipoolCloseDetails struct {
 	MinipoolVersion    uint8                 `json:"minipoolVersion"`
 	Distributed        bool                  `json:"distributed"`
 	CanClose           bool                  `json:"canClose"`
-	Balance            *big.Int              `json:"balance"`
-	Refund             *big.Int              `json:"refund"`
-	UserDepositBalance *big.Int              `json:"userDepositBalance"`
+	Balance            *units.Wei            `json:"balance"`
+	Refund             *units.Wei            `json:"refund"`
+	UserDepositBalance *units.Wei            `json:"userDepositBalance"`
 	BeaconState        beacon.ValidatorState `json:"beaconState"`
-	NodeShare          *big.Int              `json:"nodeShare"`
+	NodeShare          *units.Wei            `json:"nodeShare"`
 	GasLimits          gaslimit.Limits       `json:"gasLimits"`
 }
 

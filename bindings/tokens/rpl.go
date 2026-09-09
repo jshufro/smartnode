@@ -11,6 +11,7 @@ import (
 
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 //
@@ -27,21 +28,29 @@ func GetRPLTotalSupply(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int
 }
 
 // Get RPL balance
-func GetRPLBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetRPLBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*units.Wei, error) {
 	rocketTokenRPL, err := getRocketTokenRPL(rp, opts)
 	if err != nil {
 		return nil, err
 	}
-	return balanceOf(rocketTokenRPL, "RPL", address, opts)
+	b, err := balanceOf(rocketTokenRPL, "RPL", address, opts)
+	if err != nil {
+		return nil, err
+	}
+	return units.NewWei(b), nil
 }
 
 // Get RPL allowance
-func GetRPLAllowance(rp *rocketpool.RocketPool, owner, spender common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetRPLAllowance(rp *rocketpool.RocketPool, owner, spender common.Address, opts *bind.CallOpts) (*units.Wei, error) {
 	rocketTokenRPL, err := getRocketTokenRPL(rp, opts)
 	if err != nil {
 		return nil, err
 	}
-	return allowance(rocketTokenRPL, "RPL", owner, spender, opts)
+	a, err := allowance(rocketTokenRPL, "RPL", owner, spender, opts)
+	if err != nil {
+		return nil, err
+	}
+	return units.NewWei(a), nil
 }
 
 // Estimate the gas of TransferRPL

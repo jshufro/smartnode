@@ -25,22 +25,22 @@ const (
 )
 
 // Member proposal quorum threshold
-func GetQuorum(rp *rocketpool.RocketPool, opts *bind.CallOpts) (float64, error) {
+func GetQuorum(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
 	membersSettingsContract, err := getMembersSettingsContract(rp, opts)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	value := new(*big.Int)
 	if err := membersSettingsContract.Call(opts, value, "getQuorum"); err != nil {
-		return 0, fmt.Errorf("error getting member quorum threshold: %w", err)
+		return nil, fmt.Errorf("error getting member quorum threshold: %w", err)
 	}
-	return units.WeiToEth(*value), nil
+	return units.NewWei(*value).ToEth(), nil
 }
-func ProposeQuorum(rp *rocketpool.RocketPool, value float64, opts *bind.TransactOpts) (uint64, common.Hash, error) {
-	return trustednodedao.ProposeSetUint(rp, fmt.Sprintf("set %s", QuorumSettingPath), MembersSettingsContractName, QuorumSettingPath, units.EthToWei(value), opts)
+func ProposeQuorum(rp *rocketpool.RocketPool, value *units.Eth, opts *bind.TransactOpts) (uint64, common.Hash, error) {
+	return trustednodedao.ProposeSetUint(rp, fmt.Sprintf("set %s", QuorumSettingPath), MembersSettingsContractName, QuorumSettingPath, value.ToWei().Big(), opts)
 }
-func EstimateProposeQuorumGas(rp *rocketpool.RocketPool, value float64, opts *bind.TransactOpts) (gaslimit.Limits, error) {
-	return trustednodedao.EstimateProposeSetUintGas(rp, fmt.Sprintf("set %s", QuorumSettingPath), MembersSettingsContractName, QuorumSettingPath, units.EthToWei(value), opts)
+func EstimateProposeQuorumGas(rp *rocketpool.RocketPool, value *units.Eth, opts *bind.TransactOpts) (gaslimit.Limits, error) {
+	return trustednodedao.EstimateProposeSetUintGas(rp, fmt.Sprintf("set %s", QuorumSettingPath), MembersSettingsContractName, QuorumSettingPath, value.ToWei().Big(), opts)
 }
 
 // RPL bond required for a member

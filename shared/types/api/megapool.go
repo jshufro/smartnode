@@ -12,6 +12,7 @@ import (
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
 	"github.com/rocket-pool/smartnode/bindings/types"
 	"github.com/rocket-pool/smartnode/shared/services/beacon"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 type MegapoolStatusResponse struct {
@@ -83,9 +84,9 @@ type MegapoolValidatorDetails struct {
 type MegapoolValidatorMapAndRewardsResponse struct {
 	APIResponse
 	MegapoolValidatorMap map[string][]MegapoolValidatorDetails `json:"megapoolValidatorMap"`
-	TotalBeaconBalance   *big.Int                              `json:"totalBeaconBalance"`
-	NodeShareOfCLBalance *big.Int                              `json:"nodeShareOfCLBalance"`
-	NodeBond             *big.Int                              `json:"nodeBond"`
+	TotalBeaconBalance   *units.Wei                            `json:"totalBeaconBalance"`
+	NodeShareOfCLBalance *units.Wei                            `json:"nodeShareOfCLBalance"`
+	NodeBond             *units.Wei                            `json:"nodeBond"`
 }
 
 type MegapoolRewardSplitResponse struct {

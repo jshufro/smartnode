@@ -236,15 +236,15 @@ func getValidatorMapAndBalances(c *cli.Command) (*api.MegapoolValidatorMapAndRew
 	// Store map in the api response
 	response.MegapoolValidatorMap = statusValidators
 
-	totalBeaconBalanceWei := units.GweiUintToWei(totalBeaconBalance)
-	totalEffectiveBeaconBalanceWei := units.GweiUintToWei(totalEffectiveBeaconBalance)
+	totalBeaconBalanceWei := units.NewGwei(totalBeaconBalance).ToWei()
+	totalEffectiveBeaconBalanceWei := units.NewGwei(totalEffectiveBeaconBalance).ToWei()
 
 	// Get the node share of CL rewards
 	nodeShareOfCLBalance := big.NewInt(0)
-	if totalBeaconBalanceWei.Cmp(totalEffectiveBeaconBalanceWei) <= 0 {
+	if totalBeaconBalanceWei.Cmp(totalEffectiveBeaconBalanceWei.Big()) <= 0 {
 		nodeShareOfCLBalance = big.NewInt(0)
 	} else {
-		toBeSkimmed := new(big.Int).Sub(totalBeaconBalanceWei, totalEffectiveBeaconBalanceWei)
+		toBeSkimmed := new(big.Int).Sub(totalBeaconBalanceWei.Big(), totalEffectiveBeaconBalanceWei.Big())
 		rewards, err := calculateRewards(c, toBeSkimmed)
 		if err != nil {
 			return &response, fmt.Errorf("Error calculating the rewards split for amount %s: %w", toBeSkimmed.String(), err)
@@ -252,8 +252,8 @@ func getValidatorMapAndBalances(c *cli.Command) (*api.MegapoolValidatorMapAndRew
 		nodeShareOfCLBalance = nodeShareOfCLBalance.Add(rewards.RewardSplit.NodeRewards, status.Megapool.NodeBond)
 	}
 	response.TotalBeaconBalance = totalBeaconBalanceWei
-	response.NodeShareOfCLBalance = nodeShareOfCLBalance
-	response.NodeBond = status.Megapool.NodeBond
+	response.NodeShareOfCLBalance = units.NewWei(nodeShareOfCLBalance)
+	response.NodeBond = units.NewWei(status.Megapool.NodeBond)
 
 	// Return response
 	return &response, nil

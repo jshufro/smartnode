@@ -11,14 +11,15 @@ import (
 
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 // Token balances
 type Balances struct {
-	ETH            *big.Int `json:"eth"`
-	RETH           *big.Int `json:"reth"`
-	RPL            *big.Int `json:"rpl"`
-	FixedSupplyRPL *big.Int `json:"fixedSupplyRpl"`
+	ETH            *units.Wei `json:"eth"`
+	RETH           *units.Wei `json:"reth"`
+	RPL            *units.Wei `json:"rpl"`
+	FixedSupplyRPL *units.Wei `json:"fixedSupplyRpl"`
 }
 
 // Get token balances of an address
@@ -32,10 +33,10 @@ func GetBalances(rp *rocketpool.RocketPool, address common.Address, opts *bind.C
 
 	// Data
 	var wg errgroup.Group
-	var ethBalance *big.Int
-	var rethBalance *big.Int
-	var rplBalance *big.Int
-	var fixedSupplyRplBalance *big.Int
+	var ethBalance *units.Wei
+	var rethBalance *units.Wei
+	var rplBalance *units.Wei
+	var fixedSupplyRplBalance *units.Wei
 
 	// Load data
 	wg.Go(func() error {
@@ -75,7 +76,7 @@ func GetBalances(rp *rocketpool.RocketPool, address common.Address, opts *bind.C
 }
 
 // Get a token contract's ETH balance
-func contractETHBalance(rp *rocketpool.RocketPool, tokenContract *rocketpool.Contract, opts *bind.CallOpts) (*big.Int, error) {
+func contractETHBalance(rp *rocketpool.RocketPool, tokenContract *rocketpool.Contract, opts *bind.CallOpts) (*units.Wei, error) {
 	var blockNumber *big.Int
 	if opts != nil {
 		blockNumber = opts.BlockNumber
