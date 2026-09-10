@@ -95,16 +95,16 @@ func GetRewardsClaimerPercTimeUpdated(rp *rocketpool.RocketPool, opts *bind.Call
 }
 
 // The total claim amount for all claimers as a fraction
-func GetRewardsClaimersPercTotal(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
+func GetRewardsClaimersPercTotal(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Eth, error) {
 	rewardsSettingsContract, err := getRewardsSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Eth{}, err
 	}
-	value := new(*big.Int)
-	if err := rewardsSettingsContract.Call(opts, value, "getRewardsClaimersPercTotal"); err != nil {
-		return nil, fmt.Errorf("error getting rewards claimers total percent: %w", err)
+	var value units.Wei
+	if err := rewardsSettingsContract.Call(opts, &value, "getRewardsClaimersPercTotal"); err != nil {
+		return units.Eth{}, fmt.Errorf("error getting rewards claimers total percent: %w", err)
 	}
-	return units.NewWei(*value).ToEth(), nil
+	return value.ToEth(), nil
 }
 
 // Rewards claim interval time

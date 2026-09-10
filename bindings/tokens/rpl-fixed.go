@@ -17,25 +17,25 @@ import (
 //
 
 // Get fixed-supply RPL total supply
-func GetFixedSupplyRPLTotalSupply(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetFixedSupplyRPLTotalSupply(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
 	return totalSupply(rocketTokenFixedSupplyRPL, "fixed-supply RPL", opts)
 }
 
 // Get fixed-supply RPL balance
-func GetFixedSupplyRPLBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (*units.Wei, error) {
+func GetFixedSupplyRPLBalance(rp *rocketpool.RocketPool, address common.Address, opts *bind.CallOpts) (units.Wei, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
 	b, err := balanceOf(rocketTokenFixedSupplyRPL, "fixed-supply RPL", address, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	return units.NewWei(b), nil
+	return b, nil
 }
 
 // Get fixed-supply RPL allowance
@@ -48,7 +48,7 @@ func GetFixedSupplyRPLAllowance(rp *rocketpool.RocketPool, owner, spender common
 }
 
 // Estimate the gas of TransferFixedSupplyRPL
-func EstimateTransferFixedSupplyRPLGas(rp *rocketpool.RocketPool, to common.Address, amount *big.Int, opts *bind.TransactOpts) (gaslimit.Limits, error) {
+func EstimateTransferFixedSupplyRPLGas(rp *rocketpool.RocketPool, to common.Address, amount units.Wei, opts *bind.TransactOpts) (gaslimit.Limits, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, nil)
 	if err != nil {
 		return gaslimit.Limits{}, err
@@ -57,7 +57,7 @@ func EstimateTransferFixedSupplyRPLGas(rp *rocketpool.RocketPool, to common.Addr
 }
 
 // Transfer fixed-supply RPL
-func TransferFixedSupplyRPL(rp *rocketpool.RocketPool, to common.Address, amount *big.Int, opts *bind.TransactOpts) (common.Hash, error) {
+func TransferFixedSupplyRPL(rp *rocketpool.RocketPool, to common.Address, amount units.Wei, opts *bind.TransactOpts) (common.Hash, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, nil)
 	if err != nil {
 		return common.Hash{}, err
@@ -66,7 +66,7 @@ func TransferFixedSupplyRPL(rp *rocketpool.RocketPool, to common.Address, amount
 }
 
 // Estimate the gas of ApproveFixedSupplyRPL
-func EstimateApproveFixedSupplyRPLGas(rp *rocketpool.RocketPool, spender common.Address, amount *big.Int, opts *bind.TransactOpts) (gaslimit.Limits, error) {
+func EstimateApproveFixedSupplyRPLGas(rp *rocketpool.RocketPool, spender common.Address, amount units.Wei, opts *bind.TransactOpts) (gaslimit.Limits, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, nil)
 	if err != nil {
 		return gaslimit.Limits{}, err
@@ -75,7 +75,7 @@ func EstimateApproveFixedSupplyRPLGas(rp *rocketpool.RocketPool, spender common.
 }
 
 // Approve a fixed-supply RPL spender
-func ApproveFixedSupplyRPL(rp *rocketpool.RocketPool, spender common.Address, amount *big.Int, opts *bind.TransactOpts) (common.Hash, error) {
+func ApproveFixedSupplyRPL(rp *rocketpool.RocketPool, spender common.Address, amount units.Wei, opts *bind.TransactOpts) (common.Hash, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, nil)
 	if err != nil {
 		return common.Hash{}, err

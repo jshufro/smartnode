@@ -497,14 +497,12 @@ func (m *NetworkStateManager) createNetworkState(slotNumber uint64, nodeAddresse
 
 	// Get the complete node and user shares
 	mpds := make([]*rpstate.NativeMinipoolDetails, len(state.MinipoolDetails))
-	beaconBalances := make([]*big.Int, len(state.MinipoolDetails))
+	beaconBalances := make([]units.Wei, len(state.MinipoolDetails))
 	for i, mpd := range state.MinipoolDetails {
 		mpds[i] = &state.MinipoolDetails[i]
 		validator := state.MinipoolValidatorDetails[mpd.Pubkey]
-		if !validator.Exists {
-			beaconBalances[i] = big.NewInt(0)
-		} else {
-			beaconBalances[i] = units.GweiToWei(float64(validator.Balance))
+		if validator.Exists {
+			beaconBalances[i] = units.NewGwei(validator.Balance).ToWei()
 		}
 	}
 	err = rpstate.CalculateCompleteMinipoolShares(m.rp, contracts, mpds, beaconBalances)

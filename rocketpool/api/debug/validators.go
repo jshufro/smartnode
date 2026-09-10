@@ -157,8 +157,8 @@ func getMinipoolBalanceDetails(rp *rocketpool.RocketPool, minipoolAddress common
 	// Data
 	var wg errgroup.Group
 	var status types.MinipoolStatus
-	var userDepositBalance *units.Wei
-	var nodeFee *units.Eth
+	var userDepositBalance units.Wei
+	var nodeFee units.Eth
 
 	// Load data
 	wg.Go(func() error {
@@ -202,16 +202,16 @@ func getMinipoolBalanceDetails(rp *rocketpool.RocketPool, minipoolAddress common
 		// Use user deposit balance if initialized or prelaunch
 		userBalance = userDepositBalance
 		blockBalance = units.NewEth(32).ToWei()
-		nodeBalance.Sub(blockBalance.Big(), userBalance.Big())
+		nodeBalance = blockBalance.Sub(userBalance)
 	} else if status == types.Dissolved {
-		userBalance = new(units.Wei)
-		blockBalance = new(units.Wei)
-		nodeBalance = new(units.Wei)
+		userBalance = units.Wei{}
+		blockBalance = units.Wei{}
+		nodeBalance = units.Wei{}
 	} else if !validator.Exists || validator.ActivationEpoch >= blockEpoch {
 		// Use user deposit balance if validator not yet active on beacon chain at block
 		userBalance = userDepositBalance
 		blockBalance = units.NewEth(32).ToWei()
-		nodeBalance.Sub(blockBalance.Big(), userBalance.Big())
+		nodeBalance = blockBalance.Sub(userBalance)
 	}
 
 	fmt.Printf("%s\t%s\t%d\t%.10f\t%.10f\t%.10f\t%.10f\t%s\t%t\t%t\t%t\n",

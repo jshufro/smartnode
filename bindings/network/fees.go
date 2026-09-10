@@ -25,29 +25,29 @@ func GetNodeDemand(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, er
 }
 
 // Get the current network node commission rate
-func GetNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
+func GetNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Eth, error) {
 	rocketNetworkFees, err := getRocketNetworkFees(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Eth{}, err
 	}
-	nodeFee := new(*big.Int)
-	if err := rocketNetworkFees.Call(opts, nodeFee, "getNodeFee"); err != nil {
-		return nil, fmt.Errorf("error getting network node fee: %w", err)
+	var nodeFee units.Wei
+	if err := rocketNetworkFees.Call(opts, &nodeFee, "getNodeFee"); err != nil {
+		return units.Eth{}, fmt.Errorf("error getting network node fee: %w", err)
 	}
-	return units.NewWei(*nodeFee).ToEth(), nil
+	return nodeFee.ToEth(), nil
 }
 
 // Get the network node fee for a node demand value
-func GetNodeFeeByDemand(rp *rocketpool.RocketPool, nodeDemand *big.Int, opts *bind.CallOpts) (*units.Eth, error) {
+func GetNodeFeeByDemand(rp *rocketpool.RocketPool, nodeDemand *big.Int, opts *bind.CallOpts) (units.Eth, error) {
 	rocketNetworkFees, err := getRocketNetworkFees(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Eth{}, err
 	}
-	nodeFee := new(*big.Int)
-	if err := rocketNetworkFees.Call(opts, nodeFee, "getNodeFeeByDemand", nodeDemand); err != nil {
-		return nil, fmt.Errorf("error getting node fee by node demand: %w", err)
+	var nodeFee units.Wei
+	if err := rocketNetworkFees.Call(opts, &nodeFee, "getNodeFeeByDemand", nodeDemand); err != nil {
+		return units.Eth{}, fmt.Errorf("error getting node fee by node demand: %w", err)
 	}
-	return units.NewWei(*nodeFee).ToEth(), nil
+	return nodeFee.ToEth(), nil
 }
 
 // Get contracts

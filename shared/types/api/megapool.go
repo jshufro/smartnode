@@ -35,24 +35,24 @@ type MegapoolDetails struct {
 	ActiveValidatorCount     uint32                     `json:"activeValidatorCount"`
 	ExitingValidatorCount    uint32                     `json:"exitingValidatorCount"`
 	LockedValidatorCount     uint32                     `json:"lockedValidatorCount"`
-	NodeDebt                 *big.Int                   `json:"nodeDebt"`
-	RefundValue              *big.Int                   `json:"refundValue"`
+	NodeDebt                 units.Wei                  `json:"nodeDebt"`
+	RefundValue              units.Wei                  `json:"refundValue"`
 	DelegateExpiry           uint64                     `json:"delegateExpiry"`
 	DelegateExpired          bool                       `json:"delegateExpired"`
-	PendingRewards           *big.Int                   `json:"pendingRewards"`
+	PendingRewards           units.Wei                  `json:"pendingRewards"`
 	NodeExpressTicketCount   uint64                     `json:"nodeExpressTicketCount"`
 	UseLatestDelegate        bool                       `json:"useLatestDelegate"`
-	AssignedValue            *big.Int                   `json:"assignedValue"`
-	NodeBond                 *big.Int                   `json:"nodeBond"`
-	NodeQueuedBond           *big.Int                   `json:"nodeQueuedBond"`
-	UserCapital              *big.Int                   `json:"userCapital"`
-	NodeShare                *big.Int                   `json:"nodeShare"`
-	BondRequirement          *big.Int                   `json:"bondRequirement"`
+	AssignedValue            units.Wei                  `json:"assignedValue"`
+	NodeBond                 units.Wei                  `json:"nodeBond"`
+	NodeQueuedBond           units.Wei                  `json:"nodeQueuedBond"`
+	UserCapital              units.Wei                  `json:"userCapital"`
+	NodeShare                units.Wei                  `json:"nodeShare"`
+	BondRequirement          units.Wei                  `json:"bondRequirement"`
 	RevenueSplit             network.RevenueSplit       `json:"revenueSplit"`
 	Balances                 tokens.Balances            `json:"balances"`
 	LastDistributionTime     uint64                     `json:"lastDistributionTime"`
 	PendingRewardSplit       megapool.RewardSplit       `json:"pendingRewardSplit"`
-	ReducedBond              *big.Int                   `json:"reducedBond"`
+	ReducedBond              units.Wei                  `json:"reducedBond"`
 	QueueDetails             QueueDetails               `json:"queueDetails"`
 	Validators               []MegapoolValidatorDetails `json:"validators"`
 }
@@ -84,15 +84,15 @@ type MegapoolValidatorDetails struct {
 type MegapoolValidatorMapAndRewardsResponse struct {
 	APIResponse
 	MegapoolValidatorMap map[string][]MegapoolValidatorDetails `json:"megapoolValidatorMap"`
-	TotalBeaconBalance   *units.Wei                            `json:"totalBeaconBalance"`
-	NodeShareOfCLBalance *units.Wei                            `json:"nodeShareOfCLBalance"`
-	NodeBond             *units.Wei                            `json:"nodeBond"`
+	TotalBeaconBalance   units.Wei                             `json:"totalBeaconBalance"`
+	NodeShareOfCLBalance units.Wei                             `json:"nodeShareOfCLBalance"`
+	NodeBond             units.Wei                             `json:"nodeBond"`
 }
 
 type MegapoolRewardSplitResponse struct {
 	APIResponse
 	RewardSplit megapool.RewardSplit `json:"rewardSplit"`
-	RefundValue *big.Int             `json:"refundValue"`
+	RefundValue units.Wei            `json:"refundValue"`
 }
 
 type QueueDetails struct {

@@ -2,7 +2,6 @@ package megapool
 
 import (
 	"fmt"
-	"math/big"
 
 	"github.com/urfave/cli/v3"
 
@@ -79,7 +78,7 @@ func getStatus(c *cli.Command, finalizedState bool) (*api.MegapoolStatusResponse
 	return &response, nil
 }
 
-func calculateRewards(c *cli.Command, amount *big.Int) (*api.MegapoolRewardSplitResponse, error) {
+func calculateRewards(c *cli.Command, amount units.Wei) (*api.MegapoolRewardSplitResponse, error) {
 
 	// Get services
 	if err := services.RequireNodeRegistered(c); err != nil {
@@ -240,20 +239,19 @@ func getValidatorMapAndBalances(c *cli.Command) (*api.MegapoolValidatorMapAndRew
 	totalEffectiveBeaconBalanceWei := units.NewGwei(totalEffectiveBeaconBalance).ToWei()
 
 	// Get the node share of CL rewards
-	nodeShareOfCLBalance := big.NewInt(0)
-	if totalBeaconBalanceWei.Cmp(totalEffectiveBeaconBalanceWei.Big()) <= 0 {
-		nodeShareOfCLBalance = big.NewInt(0)
-	} else {
-		toBeSkimmed := new(big.Int).Sub(totalBeaconBalanceWei.Big(), totalEffectiveBeaconBalanceWei.Big())
+	nodeShareOfCLBalance := units.Wei{}
+	if totalBeaconBalanceWei.Cmp(totalEffectiveBeaconBalanceWei) > 0 {
+		toBeSkimmed := totalBeaconBalanceWei.Sub(totalEffectiveBeaconBalanceWei)
 		rewards, err := calculateRewards(c, toBeSkimmed)
 		if err != nil {
 			return &response, fmt.Errorf("Error calculating the rewards split for amount %s: %w", toBeSkimmed.String(), err)
 		}
-		nodeShareOfCLBalance = nodeShareOfCLBalance.Add(rewards.RewardSplit.NodeRewards, status.Megapool.NodeBond)
+		nodeShareOfCLBalance = nodeShareOfCLBalance.Add(rewards.RewardSplit.NodeRewards)
+		nodeShareOfCLBalance = nodeShareOfCLBalance.Add(status.Megapool.NodeBond)
 	}
 	response.TotalBeaconBalance = totalBeaconBalanceWei
-	response.NodeShareOfCLBalance = units.NewWei(nodeShareOfCLBalance)
-	response.NodeBond = units.NewWei(status.Megapool.NodeBond)
+	response.NodeShareOfCLBalance = nodeShareOfCLBalance
+	response.NodeBond = status.Megapool.NodeBond
 
 	// Return response
 	return &response, nil
@@ -276,11 +274,11 @@ func pendingRewardsHandler(ctx snroute.Context) {
 }
 
 func calculateRewardsHandler(ctx snroute.Context) {
-	amountWei, err := parseBigInt(ctx.Request, "amountWei")
+	amount, err := parseWei(ctx.Request, "amountWei")
 	if err != nil {
 		response.WriteErrorResponse(ctx.Writer, err)
 		return
 	}
-	resp, err := calculateRewards(ctx.Command(), amountWei)
+	resp, err := calculateRewards(ctx.Command(), amount)
 	response.WriteResponse(ctx.Writer, resp, err)
 }

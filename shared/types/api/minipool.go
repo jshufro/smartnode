@@ -27,7 +27,7 @@ type MinipoolDetails struct {
 	Node                  minipool.NodeDetails   `json:"node"`
 	User                  minipool.UserDetails   `json:"user"`
 	Balances              tokens.Balances        `json:"balances"`
-	NodeShareOfETHBalance *big.Int               `json:"nodeShareOfETHBalance"`
+	NodeShareOfETHBalance units.Wei              `json:"nodeShareOfETHBalance"`
 	Validator             ValidatorDetails       `json:"validator"`
 	CanStake              bool                   `json:"canStake"`
 	CanPromote            bool                   `json:"canPromote"`
@@ -45,17 +45,17 @@ type MinipoolDetails struct {
 	Penalties             uint64                 `json:"penalties"`
 }
 type ValidatorDetails struct {
-	Exists      bool     `json:"exists"`
-	Active      bool     `json:"active"`
-	Index       string   `json:"index"`
-	Balance     *big.Int `json:"balance"`
-	NodeBalance *big.Int `json:"nodeBalance"`
+	Exists      bool      `json:"exists"`
+	Active      bool      `json:"active"`
+	Index       string    `json:"index"`
+	Balance     units.Wei `json:"balance"`
+	NodeBalance units.Wei `json:"nodeBalance"`
 }
 type MinipoolBalanceDistributionDetails struct {
 	Address            common.Address       `json:"address"`
-	Balance            *big.Int             `json:"balance"`
-	Refund             *big.Int             `json:"refund"`
-	NodeShareOfBalance *big.Int             `json:"nodeShareOfBalance"`
+	Balance            units.Wei            `json:"balance"`
+	Refund             units.Wei            `json:"refund"`
+	NodeShareOfBalance units.Wei            `json:"nodeShareOfBalance"`
 	MinipoolVersion    uint8                `json:"minipoolVersion"`
 	Status             types.MinipoolStatus `json:"status"`
 	IsFinalized        bool                 `json:"isFinalized"`
@@ -135,11 +135,11 @@ type MinipoolCloseDetails struct {
 	MinipoolVersion    uint8                 `json:"minipoolVersion"`
 	Distributed        bool                  `json:"distributed"`
 	CanClose           bool                  `json:"canClose"`
-	Balance            *units.Wei            `json:"balance"`
-	Refund             *units.Wei            `json:"refund"`
-	UserDepositBalance *units.Wei            `json:"userDepositBalance"`
+	Balance            units.Wei             `json:"balance"`
+	Refund             units.Wei             `json:"refund"`
+	UserDepositBalance units.Wei             `json:"userDepositBalance"`
 	BeaconState        beacon.ValidatorState `json:"beaconState"`
-	NodeShare          *units.Wei            `json:"nodeShare"`
+	NodeShare          units.Wei             `json:"nodeShare"`
 	GasLimits          gaslimit.Limits       `json:"gasLimits"`
 }
 
@@ -284,7 +284,7 @@ type MinipoolRescueDissolvedDetails struct {
 	IsFinalized     bool                  `json:"isFinalized"`
 	MinipoolStatus  types.MinipoolStatus  `json:"minipoolStatus"`
 	MinipoolVersion uint8                 `json:"minipoolVersion"`
-	BeaconBalance   *big.Int              `json:"beaconBalance"`
+	BeaconBalance   units.Wei             `json:"beaconBalance"`
 	BeaconState     beacon.ValidatorState `json:"beaconState"`
 	GasLimits       gaslimit.Limits       `json:"gasLimits"`
 }

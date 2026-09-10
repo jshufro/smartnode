@@ -25,7 +25,7 @@ func EstimateDepositGas(rp *rocketpool.RocketPool, minimumNodeFee float64, valid
 	minimumNodeFeeEth := &units.Eth{
 		Decimal: decimal.NewFromFloat(minimumNodeFee),
 	}
-	return rocketNodeDeposit.GetTransactionGasInfo(opts, "deposit", minimumNodeFeeEth.ToWei().Big(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
+	return rocketNodeDeposit.GetTransactionGasInfo(opts, "deposit", minimumNodeFeeEth.ToWei().BigInt(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
 }
 
 // Make a node deposit
@@ -37,7 +37,7 @@ func Deposit(rp *rocketpool.RocketPool, minimumNodeFee float64, validatorPubkey 
 	minimumNodeFeeEth := &units.Eth{
 		Decimal: decimal.NewFromFloat(minimumNodeFee),
 	}
-	tx, err := rocketNodeDeposit.Transact(opts, "deposit", minimumNodeFeeEth.ToWei().Big(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
+	tx, err := rocketNodeDeposit.Transact(opts, "deposit", minimumNodeFeeEth.ToWei().BigInt(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("error making node deposit: %w", err)
 	}

@@ -38,6 +38,7 @@ import (
 	"github.com/rocket-pool/smartnode/shared/types/eth2/fork/fulu"
 	"github.com/rocket-pool/smartnode/shared/types/eth2/fork/gloas"
 	"github.com/rocket-pool/smartnode/shared/types/eth2/generic"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 const MAX_WITHDRAWAL_SLOT_DISTANCE = 144000 // 20 days.
@@ -441,7 +442,7 @@ func GetMegapoolQueueDetails(rp *rocketpool.RocketPool) (api.QueueDetails, error
 
 }
 
-func CalculateRewards(rp *rocketpool.RocketPool, amount *big.Int, nodeAccount common.Address) (api.MegapoolRewardSplitResponse, error) {
+func CalculateRewards(rp *rocketpool.RocketPool, amount units.Wei, nodeAccount common.Address) (api.MegapoolRewardSplitResponse, error) {
 
 	rewards := api.MegapoolRewardSplitResponse{}
 

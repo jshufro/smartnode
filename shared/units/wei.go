@@ -7,74 +7,56 @@ import (
 )
 
 var (
-	OneEth    Wei
-	OneEthBig *big.Int
+	OneEth Wei
 )
 
 func init() {
-	OneEth = Wei{Int: *big.NewInt(1e18)}
-	OneEthBig = &OneEth.Int
+	OneEth = Wei{Decimal: decimal.New(1, ethExp)}
 }
 
-func NewWei(value *big.Int) *Wei {
+func NewWei(value *big.Int) Wei {
 	if value == nil {
-		return nil
+		return Wei{Decimal: decimal.Zero}
 	}
-
-	return &Wei{Int: *value}
+	return Wei{Decimal: decimal.NewFromBigInt(value, 0)}
 }
 
-// MarshalJSON encodes Wei as a JSON integer. Embedded big.Int only provides a
-// pointer-receiver MarshalJSON, which encoding/json skips for non-addressable
-// values and would otherwise emit {}.
-func (w Wei) MarshalJSON() ([]byte, error) {
-	return w.Int.MarshalJSON()
+func WeiFromUint64(value uint64) Wei {
+	return Wei{Decimal: decimal.NewFromUint64(value)}
 }
 
-func (w *Wei) UnmarshalJSON(data []byte) error {
-	return w.Int.UnmarshalJSON(data)
+func (w Wei) ToWei() Wei {
+	return Wei{w.Decimal.Round(weiExp)}
 }
 
-// MarshalText encodes Wei as a decimal integer string. Same pointer-receiver
-// limitation as MarshalJSON for encoding.TextMarshaler satisfaction by value.
-func (w Wei) MarshalText() ([]byte, error) {
-	return w.Int.MarshalText()
+func (w Wei) ToEth() Eth {
+	return Eth{w.Decimal.Shift(weiExp - ethExp).Round(ethExp)}
 }
 
-func (w *Wei) UnmarshalText(text []byte) error {
-	return w.Int.UnmarshalText(text)
+func (w Wei) ToGwei() Gwei {
+	return Gwei{w.Decimal.Shift(weiExp - gweiExp).Round(gweiExp)}
 }
 
-func (w Wei) AppendText(b []byte) ([]byte, error) {
-	return w.Int.AppendText(b)
+func (w Wei) ToMilliEth() MilliEth {
+	return MilliEth{w.Decimal.Shift(weiExp - milliEthExp).Round(milliEthExp)}
 }
 
-func (w *Wei) ToWei() *Wei {
-	out := new(Wei)
-	out.Set(&w.Int)
-	return out
+func (w Wei) Add(other Wei) Wei {
+	return Wei{w.Decimal.Add(other.Decimal)}
 }
 
-func (w *Wei) ToEth() *Eth {
-	return &Eth{decimal.NewFromBigInt(&w.Int, -18)}
+func (w Wei) Div(other Wei) Wei {
+	return Wei{w.Decimal.DivRound(other.Decimal, weiExp)}
 }
 
-func (w *Wei) ToGwei() *Gwei {
-	return &Gwei{decimal.NewFromBigInt(&w.Int, -9)}
+func (w Wei) Cmp(other Wei) int {
+	return w.Decimal.Cmp(other.Decimal)
 }
 
-func (w *Wei) ToMilliEth() *MilliEth {
-	return &MilliEth{decimal.NewFromBigInt(&w.Int, -15)}
+func (w Wei) Mul(other Wei) Wei {
+	return Wei{w.Decimal.Mul(other.Decimal)}
 }
 
-// Convenience method to set the value of a Wei from a big.Int, useful for
-// integrating with libraries i.e. abigen that use big.Int.
-func (w *Wei) SetBig(value *big.Int) *Wei {
-	w.Int.Set(value)
-	return w
-}
-
-// Convenience method to convert to big for external libraries
-func (w *Wei) Big() *big.Int {
-	return &w.Int
+func (w Wei) Sub(other Wei) Wei {
+	return Wei{w.Decimal.Sub(other.Decimal)}
 }

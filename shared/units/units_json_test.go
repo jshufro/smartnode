@@ -3,7 +3,6 @@ package units
 import (
 	"bytes"
 	"encoding/json"
-	"math/big"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -14,11 +13,10 @@ func TestUnitJSONRoundTrip(t *testing.T) {
 	preciseEth := "1234567890.123456789012345678"
 	preciseGwei := "9876543210.987654321"
 	preciseMilli := "111222333444.555666777"
-	preciseWei := new(big.Int)
-	preciseWei.SetString("123456789012345678901234567890", 10) // > 2^53
+	preciseWei := "123456789012345678901234567890" // > 2^53
 
 	t.Run("Eth", func(t *testing.T) {
-		in := &Eth{Decimal: decimal.RequireFromString(preciseEth)}
+		in := Eth{Decimal: decimal.RequireFromString(preciseEth)}
 		raw, err := json.Marshal(in)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
@@ -35,7 +33,7 @@ func TestUnitJSONRoundTrip(t *testing.T) {
 	})
 
 	t.Run("Gwei", func(t *testing.T) {
-		in := &Gwei{Decimal: decimal.RequireFromString(preciseGwei)}
+		in := Gwei{Decimal: decimal.RequireFromString(preciseGwei)}
 		raw, err := json.Marshal(in)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
@@ -52,7 +50,7 @@ func TestUnitJSONRoundTrip(t *testing.T) {
 	})
 
 	t.Run("MilliEth", func(t *testing.T) {
-		in := &MilliEth{Decimal: decimal.RequireFromString(preciseMilli)}
+		in := MilliEth{Decimal: decimal.RequireFromString(preciseMilli)}
 		raw, err := json.Marshal(in)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
@@ -69,30 +67,19 @@ func TestUnitJSONRoundTrip(t *testing.T) {
 	})
 
 	t.Run("Wei", func(t *testing.T) {
-		in := newWei(preciseWei)
+		in := weiFromString(preciseWei)
 		raw, err := json.Marshal(in)
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}
-		if string(raw) != preciseWei.String() {
-			t.Fatalf("marshal wei = %s, want %s", raw, preciseWei)
-		}
+		assertQuotedJSONString(t, raw, preciseWei)
 
 		var out Wei
 		if err := json.Unmarshal(raw, &out); err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
-		if in.Cmp(&out.Int) != 0 {
-			t.Fatalf("round-trip wei = %s, want %s", &out.Int, in)
-		}
-
-		// Value marshal must also preserve digits (not encode as {}).
-		rawValue, err := json.Marshal(*in)
-		if err != nil {
-			t.Fatalf("marshal wei value: %v", err)
-		}
-		if string(rawValue) != preciseWei.String() {
-			t.Fatalf("marshal wei value = %s, want %s", rawValue, preciseWei)
+		if !in.Equal(out.Decimal) {
+			t.Fatalf("round-trip wei = %s, want %s", out, in)
 		}
 	})
 }
@@ -106,13 +93,12 @@ func TestUnitJSONStructFields(t *testing.T) {
 	}
 
 	in := payload{
-		Wei:      *newWei(pow10(18)),
+		Wei:      weiFromString("1000000000000000000"),
 		Eth:      Eth{Decimal: decimal.RequireFromString("1.000000000000000001")},
 		Gwei:     Gwei{Decimal: decimal.RequireFromString("2000000000.000000001")},
 		MilliEth: MilliEth{Decimal: decimal.RequireFromString("3000.000000000000001")},
 	}
 
-	// Marshal by value to ensure pointer-receiver-only methods are not required.
 	raw, err := json.Marshal(in)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -123,8 +109,8 @@ func TestUnitJSONStructFields(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if in.Wei.Cmp(&out.Wei.Int) != 0 {
-		t.Errorf("wei = %s, want %s", &out.Wei.Int, &in.Wei.Int)
+	if !in.Wei.Equal(out.Wei.Decimal) {
+		t.Errorf("wei = %s, want %s", out.Wei, in.Wei)
 	}
 	if !in.Eth.Equal(out.Eth.Decimal) {
 		t.Errorf("eth = %s, want %s", out.Eth, in.Eth)
@@ -138,9 +124,8 @@ func TestUnitJSONStructFields(t *testing.T) {
 }
 
 func TestUnitJSONDoesNotUseFloat(t *testing.T) {
-	// float64 cannot represent this eth amount exactly; JSON must not go through float.
 	const amount = "0.123456789012345678"
-	in := &Eth{Decimal: decimal.RequireFromString(amount)}
+	in := Eth{Decimal: decimal.RequireFromString(amount)}
 
 	raw, err := json.Marshal(in)
 	if err != nil {
@@ -167,22 +152,19 @@ func TestUnitJSONDoesNotUseFloat(t *testing.T) {
 
 func TestWeiJSONPreservesBeyondFloatMantissa(t *testing.T) {
 	// 2^53 + 1 cannot be represented exactly as float64.
-	in := newWei(new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1)))
+	in := weiFromString("9007199254740993")
 
 	raw, err := json.Marshal(in)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	if string(raw) != in.String() {
-		t.Fatalf("marshal = %s, want %s", raw, in)
-	}
+	assertQuotedJSONString(t, raw, in.String())
 
 	var asFloat float64
-	if err := json.Unmarshal(raw, &asFloat); err != nil {
+	if err := json.Unmarshal([]byte(in.String()), &asFloat); err != nil {
 		t.Fatalf("unmarshal float: %v", err)
 	}
-	floatWei := decimal.NewFromFloat(asFloat).BigInt()
-	if floatWei.Cmp(&in.Int) == 0 {
+	if decimal.NewFromFloat(asFloat).Equal(in.Decimal) {
 		t.Fatal("expected float64 path to lose precision for 2^53+1")
 	}
 
@@ -190,8 +172,8 @@ func TestWeiJSONPreservesBeyondFloatMantissa(t *testing.T) {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatalf("unmarshal wei: %v", err)
 	}
-	if in.Cmp(&out.Int) != 0 {
-		t.Fatalf("wei json path lost precision: got %s, want %s", &out.Int, in)
+	if !in.Equal(out.Decimal) {
+		t.Fatalf("wei json path lost precision: got %s, want %s", out, in)
 	}
 }
 

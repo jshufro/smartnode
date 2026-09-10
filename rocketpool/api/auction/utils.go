@@ -67,9 +67,9 @@ func getSufficientRemainingRPLForLot(rp *rocketpool.RocketPool) (bool, error) {
 
 	// Data
 	var wg errgroup.Group
-	var remainingRplBalance *big.Int
-	var lotMinimumEthValue *big.Int
-	var rplPrice *big.Int
+	var remainingRplBalance units.Wei
+	var lotMinimumEthValue units.Wei
+	var rplPrice units.Wei
 
 	// Get data
 	wg.Go(func() error {
@@ -94,13 +94,11 @@ func getSufficientRemainingRPLForLot(rp *rocketpool.RocketPool) (bool, error) {
 	}
 
 	// Calculate lot minimum RPL amount
-	var tmp big.Int
-	var lotMinimumRplAmount big.Int
-	tmp.Mul(lotMinimumEthValue, units.OneEthBig)
-	lotMinimumRplAmount.Quo(&tmp, rplPrice)
+	tmp := lotMinimumEthValue.Mul(units.OneEth)
+	lotMinimumRplAmount := tmp.Div(rplPrice)
 
 	// Return
-	return (remainingRplBalance.Cmp(&lotMinimumRplAmount) >= 0), nil
+	return (remainingRplBalance.Cmp(lotMinimumRplAmount) >= 0), nil
 
 }
 

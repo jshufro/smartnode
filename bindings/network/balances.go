@@ -90,16 +90,16 @@ func GetTotalRETHSupply(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.In
 }
 
 // Get the current network ETH utilization rate
-func GetETHUtilizationRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*units.Eth, error) {
+func GetETHUtilizationRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Eth, error) {
 	rocketNetworkBalances, err := getRocketNetworkBalances(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Eth{}, err
 	}
-	ethUtilizationRate := new(*big.Int)
-	if err := rocketNetworkBalances.Call(opts, ethUtilizationRate, "getETHUtilizationRate"); err != nil {
-		return nil, fmt.Errorf("error getting network ETH utilization rate: %w", err)
+	var ethUtilizationRate units.Wei
+	if err := rocketNetworkBalances.Call(opts, &ethUtilizationRate, "getETHUtilizationRate"); err != nil {
+		return units.Eth{}, fmt.Errorf("error getting network ETH utilization rate: %w", err)
 	}
-	return units.NewWei(*ethUtilizationRate).ToEth(), nil
+	return ethUtilizationRate.ToEth(), nil
 }
 
 // Estimate the gas of SubmitBalances

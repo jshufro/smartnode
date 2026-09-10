@@ -11,6 +11,7 @@ import (
 
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 // Settings
@@ -272,40 +273,40 @@ func GetLotDetailsWithBids(rp *rocketpool.RocketPool, lotIndex uint64, bidder co
 }
 
 // Get the total RPL balance of the auction contract
-func GetTotalRPLBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetTotalRPLBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketAuctionManager, err := getRocketAuctionManager(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	totalRplBalance := new(*big.Int)
+	totalRplBalance := new(units.Wei)
 	if err := rocketAuctionManager.Call(opts, totalRplBalance, "getTotalRPLBalance"); err != nil {
-		return nil, fmt.Errorf("error getting auction contract total RPL balance: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting auction contract total RPL balance: %w", err)
 	}
 	return *totalRplBalance, nil
 }
 
 // Get the allotted RPL balance of the auction contract
-func GetAllottedRPLBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetAllottedRPLBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketAuctionManager, err := getRocketAuctionManager(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	allottedRplBalance := new(*big.Int)
+	allottedRplBalance := new(units.Wei)
 	if err := rocketAuctionManager.Call(opts, allottedRplBalance, "getAllottedRPLBalance"); err != nil {
-		return nil, fmt.Errorf("error getting auction contract allotted RPL balance: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting auction contract allotted RPL balance: %w", err)
 	}
 	return *allottedRplBalance, nil
 }
 
 // Get the remaining RPL balance of the auction contract
-func GetRemainingRPLBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetRemainingRPLBalance(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketAuctionManager, err := getRocketAuctionManager(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	remainingRplBalance := new(*big.Int)
+	remainingRplBalance := new(units.Wei)
 	if err := rocketAuctionManager.Call(opts, remainingRplBalance, "getRemainingRPLBalance"); err != nil {
-		return nil, fmt.Errorf("error getting auction contract remaining RPL balance: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting auction contract remaining RPL balance: %w", err)
 	}
 	return *remainingRplBalance, nil
 }

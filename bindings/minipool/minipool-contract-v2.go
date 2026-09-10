@@ -177,9 +177,9 @@ func (mp *minipool_v2) GetNodeDetails(opts *bind.CallOpts) (NodeDetails, error) 
 	// Data
 	var wg errgroup.Group
 	var address common.Address
-	var fee *units.Eth
-	var depositBalance *units.Wei
-	var refundBalance *units.Wei
+	var fee units.Eth
+	var depositBalance units.Wei
+	var refundBalance units.Wei
 	var depositAssigned bool
 
 	// Load data
@@ -231,26 +231,26 @@ func (mp *minipool_v2) GetNodeAddress(opts *bind.CallOpts) (common.Address, erro
 	}
 	return *nodeAddress, nil
 }
-func (mp *minipool_v2) GetNodeFee(opts *bind.CallOpts) (*units.Eth, error) {
-	nodeFee := new(*big.Int)
+func (mp *minipool_v2) GetNodeFee(opts *bind.CallOpts) (units.Eth, error) {
+	nodeFee := new(units.Wei)
 	if err := mp.Contract.Call(opts, nodeFee, "getNodeFee"); err != nil {
-		return nil, fmt.Errorf("error getting minipool %s node fee: %w", mp.Address.Hex(), err)
+		return units.Eth{}, fmt.Errorf("error getting minipool %s node fee: %w", mp.Address.Hex(), err)
 	}
-	return units.NewWei(*nodeFee).ToEth(), nil
+	return nodeFee.ToEth(), nil
 }
-func (mp *minipool_v2) GetNodeDepositBalance(opts *bind.CallOpts) (*units.Wei, error) {
-	nodeDepositBalance := new(*big.Int)
+func (mp *minipool_v2) GetNodeDepositBalance(opts *bind.CallOpts) (units.Wei, error) {
+	nodeDepositBalance := new(units.Wei)
 	if err := mp.Contract.Call(opts, nodeDepositBalance, "getNodeDepositBalance"); err != nil {
-		return nil, fmt.Errorf("error getting minipool %s node deposit balance: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting minipool %s node deposit balance: %w", mp.Address.Hex(), err)
 	}
-	return units.NewWei(*nodeDepositBalance), nil
+	return *nodeDepositBalance, nil
 }
-func (mp *minipool_v2) GetNodeRefundBalance(opts *bind.CallOpts) (*units.Wei, error) {
-	nodeRefundBalance := new(*big.Int)
+func (mp *minipool_v2) GetNodeRefundBalance(opts *bind.CallOpts) (units.Wei, error) {
+	nodeRefundBalance := new(units.Wei)
 	if err := mp.Contract.Call(opts, nodeRefundBalance, "getNodeRefundBalance"); err != nil {
-		return nil, fmt.Errorf("error getting minipool %s node refund balance: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting minipool %s node refund balance: %w", mp.Address.Hex(), err)
 	}
-	return units.NewWei(*nodeRefundBalance), nil
+	return *nodeRefundBalance, nil
 }
 func (mp *minipool_v2) GetNodeDepositAssigned(opts *bind.CallOpts) (bool, error) {
 	nodeDepositAssigned := new(bool)
@@ -265,7 +265,7 @@ func (mp *minipool_v2) GetUserDetails(opts *bind.CallOpts) (UserDetails, error) 
 
 	// Data
 	var wg errgroup.Group
-	var depositBalance *units.Wei
+	var depositBalance units.Wei
 	var depositAssigned bool
 	var depositAssignedTime time.Time
 
@@ -299,12 +299,12 @@ func (mp *minipool_v2) GetUserDetails(opts *bind.CallOpts) (UserDetails, error) 
 	}, nil
 
 }
-func (mp *minipool_v2) GetUserDepositBalance(opts *bind.CallOpts) (*units.Wei, error) {
-	userDepositBalance := new(*big.Int)
+func (mp *minipool_v2) GetUserDepositBalance(opts *bind.CallOpts) (units.Wei, error) {
+	userDepositBalance := new(units.Wei)
 	if err := mp.Contract.Call(opts, userDepositBalance, "getUserDepositBalance"); err != nil {
-		return nil, fmt.Errorf("error getting minipool %s user deposit balance: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting minipool %s user deposit balance: %w", mp.Address.Hex(), err)
 	}
-	return units.NewWei(*userDepositBalance), nil
+	return *userDepositBalance, nil
 }
 func (mp *minipool_v2) GetUserDepositAssigned(opts *bind.CallOpts) (bool, error) {
 	userDepositAssigned := new(bool)
@@ -491,21 +491,21 @@ func (mp *minipool_v2) GetEffectiveDelegate(opts *bind.CallOpts) (common.Address
 }
 
 // Given a validator balance, calculates how much belongs to the node taking into consideration rewards and penalties
-func (mp *minipool_v2) CalculateNodeShare(balance *units.Wei, opts *bind.CallOpts) (*units.Wei, error) {
-	nodeAmount := new(*big.Int)
-	if err := mp.Contract.Call(opts, nodeAmount, "calculateNodeShare", balance.Big()); err != nil {
-		return nil, fmt.Errorf("error getting minipool node portion: %w", err)
+func (mp *minipool_v2) CalculateNodeShare(balance units.Wei, opts *bind.CallOpts) (units.Wei, error) {
+	nodeAmount := new(units.Wei)
+	if err := mp.Contract.Call(opts, nodeAmount, "calculateNodeShare", balance); err != nil {
+		return units.Wei{}, fmt.Errorf("error getting minipool node portion: %w", err)
 	}
-	return units.NewWei(*nodeAmount), nil
+	return *nodeAmount, nil
 }
 
 // Given a validator balance, calculates how much belongs to rETH users taking into consideration rewards and penalties
-func (mp *minipool_v2) CalculateUserShare(balance *units.Wei, opts *bind.CallOpts) (*units.Wei, error) {
-	userAmount := new(*big.Int)
-	if err := mp.Contract.Call(opts, userAmount, "calculateUserShare", balance.Big()); err != nil {
-		return nil, fmt.Errorf("error getting minipool user portion: %w", err)
+func (mp *minipool_v2) CalculateUserShare(balance units.Wei, opts *bind.CallOpts) (units.Wei, error) {
+	userAmount := new(units.Wei)
+	if err := mp.Contract.Call(opts, userAmount, "calculateUserShare", balance); err != nil {
+		return units.Wei{}, fmt.Errorf("error getting minipool user portion: %w", err)
 	}
-	return units.NewWei(*userAmount), nil
+	return *userAmount, nil
 }
 
 // Estimate the gas requiired to vote to scrub a minipool

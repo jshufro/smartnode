@@ -30,34 +30,34 @@ type NativeNodeDetails struct {
 	FeeDistributorInitialised        bool           `json:"fee_distributor_initialised"`
 	FeeDistributorAddress            common.Address `json:"fee_distributor_address"`
 	RewardNetwork                    *big.Int       `json:"reward_network"`
-	EffectiveRPLStake                *units.Wei     `json:"effective_rpl_stake"`
-	MinimumRPLStake                  *units.Wei     `json:"minimum_rpl_stake"`
-	MaximumRPLStake                  *units.Wei     `json:"maximum_rpl_stake"`
-	EthBorrowed                      *units.Wei     `json:"eth_borrowed"`
-	EthBorrowedLimit                 *units.Wei     `json:"eth_borrowed_limit"`
-	MegapoolETHBorrowed              *units.Wei     `json:"megapool_eth_borrowed"`
-	MinipoolETHBorrowed              *units.Wei     `json:"minipool_eth_borrowed"`
-	EthBonded                        *units.Wei     `json:"eth_bonded"`
-	MegapoolEthBonded                *units.Wei     `json:"megapool_eth_bonded"`
-	MinipoolETHBonded                *units.Wei     `json:"minipool_eth_bonded"`
-	MegapoolStakedRPL                *units.Wei     `json:"megapool_staked_rpl"`
-	LegacyStakedRPL                  *units.Wei     `json:"legacy_staked_rpl"`
-	UnstakingRPL                     *units.Wei     `json:"unstaking_rpl"`
-	LockedRPL                        *units.Wei     `json:"locked_rpl"`
+	EffectiveRPLStake                units.Wei      `json:"effective_rpl_stake"`
+	MinimumRPLStake                  units.Wei      `json:"minimum_rpl_stake"`
+	MaximumRPLStake                  units.Wei      `json:"maximum_rpl_stake"`
+	EthBorrowed                      units.Wei      `json:"eth_borrowed"`
+	EthBorrowedLimit                 units.Wei      `json:"eth_borrowed_limit"`
+	MegapoolETHBorrowed              units.Wei      `json:"megapool_eth_borrowed"`
+	MinipoolETHBorrowed              units.Wei      `json:"minipool_eth_borrowed"`
+	EthBonded                        units.Wei      `json:"eth_bonded"`
+	MegapoolEthBonded                units.Wei      `json:"megapool_eth_bonded"`
+	MinipoolETHBonded                units.Wei      `json:"minipool_eth_bonded"`
+	MegapoolStakedRPL                units.Wei      `json:"megapool_staked_rpl"`
+	LegacyStakedRPL                  units.Wei      `json:"legacy_staked_rpl"`
+	UnstakingRPL                     units.Wei      `json:"unstaking_rpl"`
+	LockedRPL                        units.Wei      `json:"locked_rpl"`
 	MinipoolCount                    *big.Int       `json:"minipool_count"`
 	MegapoolValidatorCount           uint32         `json:"megapool_validator_count"`
-	BalanceETH                       *units.Wei     `json:"balance_eth"`
-	BalanceRETH                      *units.Wei     `json:"balance_reth"`
-	BalanceRPL                       *units.Wei     `json:"balance_rpl"`
-	BalanceOldRPL                    *units.Wei     `json:"balance_old_rpl"`
-	DepositCreditBalance             *units.Wei     `json:"deposit_credit_balance"`
+	BalanceETH                       units.Wei      `json:"balance_eth"`
+	BalanceRETH                      units.Wei      `json:"balance_reth"`
+	BalanceRPL                       units.Wei      `json:"balance_rpl"`
+	BalanceOldRPL                    units.Wei      `json:"balance_old_rpl"`
+	DepositCreditBalance             units.Wei      `json:"deposit_credit_balance"`
 	WithdrawalAddress                common.Address `json:"withdrawal_address"`
 	PendingWithdrawalAddress         common.Address `json:"pending_withdrawal_address"`
 	SmoothingPoolRegistrationState   bool           `json:"smoothing_pool_registration_state"`
 	SmoothingPoolRegistrationChanged *big.Int       `json:"smoothing_pool_registration_changed"`
 	NodeAddress                      common.Address `json:"node_address"`
-	CollateralisationRatio           *units.Wei     `json:"collateralisation_ratio"`
-	DistributorBalance               *units.Wei     `json:"distributor_balance"`
+	CollateralisationRatio           units.Wei      `json:"collateralisation_ratio"`
+	DistributorBalance               units.Wei      `json:"distributor_balance"`
 	MegapoolAddress                  common.Address `json:"megapool_address"`
 	MegapoolDeployed                 bool           `json:"megapool_deployed"`
 }
@@ -100,7 +100,7 @@ func GetNativeNodeDetails(rp *rocketpool.RocketPool, contracts *NetworkContracts
 	}
 	details := NativeNodeDetails{
 		NodeAddress:            nodeAddress,
-		CollateralisationRatio: units.NewWei(big.NewInt(0)),
+		CollateralisationRatio: units.Wei{},
 	}
 
 	err := addNodeDetailsCalls(contracts, contracts.Multicaller, &details, nodeAddress)
@@ -144,7 +144,7 @@ func GetNativeNodeDetails(rp *rocketpool.RocketPool, contracts *NetworkContracts
 	// TODO effectiveRPLStake and MinimumRPLStake are deprecated in Saturn
 	// Fix the effective stake
 	if details.EffectiveRPLStake.Cmp(details.MinimumRPLStake) == -1 {
-		details.EffectiveRPLStake.SetUint64(0)
+		details.EffectiveRPLStake = units.Wei{}
 	}
 
 	return details, nil
@@ -183,7 +183,6 @@ func GetAllNativeNodeDetails(rp *rocketpool.RocketPool, contracts *NetworkContra
 				address := addresses[j]
 				details := &nodeDetails[j]
 				details.NodeAddress = address
-				details.CollateralisationRatio = big.NewInt(0)
 
 				err = addNodeDetailsCalls(contracts, mc, details, address)
 				if err != nil {
@@ -227,7 +226,7 @@ func GetAllNativeNodeDetails(rp *rocketpool.RocketPool, contracts *NetworkContra
 		// TODO effectiveRPLStake and MinimumRPLStake are deprecated in Saturn
 		// Fix the effective stake
 		if details.EffectiveRPLStake.Cmp(details.MinimumRPLStake) == -1 {
-			details.EffectiveRPLStake.SetUint64(0)
+			details.EffectiveRPLStake = units.Wei{}
 		}
 	}
 
@@ -309,39 +308,39 @@ func addNodeDetailsCalls(contracts *NetworkContracts, mc *multicall.MultiCaller,
 	addCall(contracts.RocketNodeManager, &details.RewardNetwork, "getRewardNetwork", address)
 
 	addCall(contracts.RocketMinipoolManager, &details.MinipoolCount, "getNodeMinipoolCount", address)
-	addCall(contracts.RocketTokenRETH, &details.BalanceRETH.Int, "balanceOf", address)
-	addCall(contracts.RocketTokenRPL, &details.BalanceRPL.Int, "balanceOf", address)
-	addCall(contracts.RocketTokenRPLFixedSupply, &details.BalanceOldRPL.Int, "balanceOf", address)
+	addCall(contracts.RocketTokenRETH, &details.BalanceRETH, "balanceOf", address)
+	addCall(contracts.RocketTokenRPL, &details.BalanceRPL, "balanceOf", address)
+	addCall(contracts.RocketTokenRPLFixedSupply, &details.BalanceOldRPL, "balanceOf", address)
 	addCall(contracts.RocketStorage, &details.WithdrawalAddress, "getNodeWithdrawalAddress", address)
 	addCall(contracts.RocketStorage, &details.PendingWithdrawalAddress, "getNodePendingWithdrawalAddress", address)
 	addCall(contracts.RocketNodeManager, &details.SmoothingPoolRegistrationState, "getSmoothingPoolRegistrationState", address)
 	addCall(contracts.RocketNodeManager, &details.SmoothingPoolRegistrationChanged, "getSmoothingPoolRegistrationChanged", address)
 
 	// Atlas
-	addCall(contracts.RocketNodeDeposit, &details.DepositCreditBalance.Int, "getNodeDepositCredit", address)
-	addCall(contracts.RocketNodeStaking, &details.CollateralisationRatio.Int, "getNodeETHCollateralisationRatio", address)
+	addCall(contracts.RocketNodeDeposit, &details.DepositCreditBalance, "getNodeDepositCredit", address)
+	addCall(contracts.RocketNodeStaking, &details.CollateralisationRatio, "getNodeETHCollateralisationRatio", address)
 
 	// Saturn
 	// a node's total borrowed ETH amount (minipool + megapool)
-	addCall(contracts.RocketNodeStaking, &details.EthBorrowed.Int, "getNodeETHBorrowed", address)
+	addCall(contracts.RocketNodeStaking, &details.EthBorrowed, "getNodeETHBorrowed", address)
 	// a node's borrowed megapool ETH amount
-	addCall(contracts.RocketNodeStaking, &details.MegapoolETHBorrowed.Int, "getNodeMegapoolETHBorrowed", address)
+	addCall(contracts.RocketNodeStaking, &details.MegapoolETHBorrowed, "getNodeMegapoolETHBorrowed", address)
 	// a node's borrowed minipool ETH amount
-	addCall(contracts.RocketNodeStaking, &details.MinipoolETHBorrowed.Int, "getNodeMinipoolETHBorrowed", address)
+	addCall(contracts.RocketNodeStaking, &details.MinipoolETHBorrowed, "getNodeMinipoolETHBorrowed", address)
 	// a node's total amount of a node operator's bonded ETH (minipool + megapool)
-	addCall(contracts.RocketNodeStaking, &details.EthBonded.Int, "getNodeETHBonded", address)
+	addCall(contracts.RocketNodeStaking, &details.EthBonded, "getNodeETHBonded", address)
 	// the amount of a node operator's megapool bonded ETH
-	addCall(contracts.RocketNodeStaking, &details.MegapoolEthBonded.Int, "getNodeMegapoolETHBonded", address)
+	addCall(contracts.RocketNodeStaking, &details.MegapoolEthBonded, "getNodeMegapoolETHBonded", address)
 	// the amount of a node operator's minipool bonded ETH
-	addCall(contracts.RocketNodeStaking, &details.MinipoolETHBonded.Int, "getNodeMinipoolETHBonded", address)
+	addCall(contracts.RocketNodeStaking, &details.MinipoolETHBonded, "getNodeMinipoolETHBonded", address)
 	// the amount of megapool staked RPL for a node operator
-	addCall(contracts.RocketNodeStaking, &details.MegapoolStakedRPL.Int, "getNodeMegapoolStakedRPL", address)
+	addCall(contracts.RocketNodeStaking, &details.MegapoolStakedRPL, "getNodeMegapoolStakedRPL", address)
 	// the amount of legacy staked RPL for a node operator
-	addCall(contracts.RocketNodeStaking, &details.LegacyStakedRPL.Int, "getNodeLegacyStakedRPL", address)
+	addCall(contracts.RocketNodeStaking, &details.LegacyStakedRPL, "getNodeLegacyStakedRPL", address)
 	// the timestamp at which a node last unstaked megapool staked RPL
-	addCall(contracts.RocketNodeStaking, &details.UnstakingRPL.Int, "getNodeUnstakingRPL", address)
+	addCall(contracts.RocketNodeStaking, &details.UnstakingRPL, "getNodeUnstakingRPL", address)
 	// the amount of RPL that is locked for a given node
-	addCall(contracts.RocketNodeStaking, &details.LockedRPL.Int, "getNodeLockedRPL", address)
+	addCall(contracts.RocketNodeStaking, &details.LockedRPL, "getNodeLockedRPL", address)
 	addCall(contracts.RocketMegapoolFactory, &details.MegapoolAddress, "getExpectedAddress", address)
 	addCall(contracts.RocketMegapoolFactory, &details.MegapoolDeployed, "getMegapoolDeployed", address)
 

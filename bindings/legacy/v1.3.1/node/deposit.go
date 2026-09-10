@@ -25,7 +25,7 @@ func EstimateDepositGas(rp *rocketpool.RocketPool, bondAmount *big.Int, minimumN
 	minimumNodeFeeEth := &units.Eth{
 		Decimal: decimal.NewFromFloat(minimumNodeFee),
 	}
-	return rocketNodeDeposit.GetTransactionGasInfo(opts, "deposit", bondAmount, minimumNodeFeeEth.ToWei().Big(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
+	return rocketNodeDeposit.GetTransactionGasInfo(opts, "deposit", bondAmount, minimumNodeFeeEth.ToWei().BigInt(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
 }
 
 // Make a node deposit
@@ -37,7 +37,7 @@ func Deposit(rp *rocketpool.RocketPool, bondAmount *big.Int, minimumNodeFee floa
 	minimumNodeFeeEth := &units.Eth{
 		Decimal: decimal.NewFromFloat(minimumNodeFee),
 	}
-	tx, err := rocketNodeDeposit.Transact(opts, "deposit", bondAmount, minimumNodeFeeEth.ToWei().Big(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
+	tx, err := rocketNodeDeposit.Transact(opts, "deposit", bondAmount, minimumNodeFeeEth.ToWei().BigInt(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("error making node deposit: %w", err)
 	}
@@ -53,7 +53,7 @@ func EstimateDepositWithCreditGas(rp *rocketpool.RocketPool, bondAmount *big.Int
 	minimumNodeFeeEth := &units.Eth{
 		Decimal: decimal.NewFromFloat(minimumNodeFee),
 	}
-	return rocketNodeDeposit.GetTransactionGasInfo(opts, "depositWithCredit", bondAmount, minimumNodeFeeEth.ToWei().Big(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
+	return rocketNodeDeposit.GetTransactionGasInfo(opts, "depositWithCredit", bondAmount, minimumNodeFeeEth.ToWei().BigInt(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
 }
 
 // Make a node deposit by using the credit balance
@@ -65,7 +65,7 @@ func DepositWithCredit(rp *rocketpool.RocketPool, bondAmount *big.Int, minimumNo
 	minimumNodeFeeEth := &units.Eth{
 		Decimal: decimal.NewFromFloat(minimumNodeFee),
 	}
-	tx, err := rocketNodeDeposit.Transact(opts, "depositWithCredit", bondAmount, minimumNodeFeeEth.ToWei().Big(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
+	tx, err := rocketNodeDeposit.Transact(opts, "depositWithCredit", bondAmount, minimumNodeFeeEth.ToWei().BigInt(), validatorPubkey[:], validatorSignature[:], depositDataRoot, salt, expectedMinipoolAddress)
 	if err != nil {
 		return nil, fmt.Errorf("error making node deposit with credit: %w", err)
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
 	"github.com/rocket-pool/smartnode/bindings/types"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 // Settings
@@ -599,7 +600,7 @@ func submitProposal(rp *rocketpool.RocketPool, message string, payload []byte, b
 }
 
 // Estimate the gas of VoteOnProposal
-func EstimateVoteOnProposalGas(rp *rocketpool.RocketPool, proposalId uint64, voteDirection types.VoteDirection, votingPower *big.Int, nodeIndex uint64, witness []types.VotingTreeNode, opts *bind.TransactOpts) (gaslimit.Limits, error) {
+func EstimateVoteOnProposalGas(rp *rocketpool.RocketPool, proposalId uint64, voteDirection types.VoteDirection, votingPower units.Wei, nodeIndex uint64, witness []types.VotingTreeNode, opts *bind.TransactOpts) (gaslimit.Limits, error) {
 	rocketDAOProtocolProposal, err := getRocketDAOProtocolProposal(rp, nil)
 	if err != nil {
 		return gaslimit.Limits{}, err
@@ -608,7 +609,7 @@ func EstimateVoteOnProposalGas(rp *rocketpool.RocketPool, proposalId uint64, vot
 }
 
 // Vote on a submitted proposal
-func VoteOnProposal(rp *rocketpool.RocketPool, proposalId uint64, voteDirection types.VoteDirection, votingPower *big.Int, nodeIndex uint64, witness []types.VotingTreeNode, opts *bind.TransactOpts) (common.Hash, error) {
+func VoteOnProposal(rp *rocketpool.RocketPool, proposalId uint64, voteDirection types.VoteDirection, votingPower units.Wei, nodeIndex uint64, witness []types.VotingTreeNode, opts *bind.TransactOpts) (common.Hash, error) {
 	rocketDAOProtocolProposal, err := getRocketDAOProtocolProposal(rp, nil)
 	if err != nil {
 		return common.Hash{}, err

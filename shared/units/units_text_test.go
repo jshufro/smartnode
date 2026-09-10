@@ -1,9 +1,7 @@
 package units
 
 import (
-	"bytes"
 	"encoding"
-	"math/big"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -82,7 +80,7 @@ func TestUnitTextRoundTrip(t *testing.T) {
 	})
 
 	t.Run("Wei", func(t *testing.T) {
-		in := *newWei(mustBigInt(preciseWei))
+		in := weiFromString(preciseWei)
 		assertTextMarshaler(t, in)
 
 		raw, err := in.MarshalText()
@@ -98,8 +96,8 @@ func TestUnitTextRoundTrip(t *testing.T) {
 		if err := out.UnmarshalText(raw); err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
-		if in.Cmp(&out.Int) != 0 {
-			t.Fatalf("round-trip = %s, want %s", &out.Int, &in.Int)
+		if !in.Equal(out.Decimal) {
+			t.Fatalf("round-trip = %s, want %s", out, in)
 		}
 	})
 }
@@ -120,7 +118,6 @@ func TestUnitTextDoesNotUseFloat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
-	// Sanity: the discriminating float loss still holds for this amount.
 	if decimal.NewFromFloat(asFloat.InexactFloat64()).Equal(in.Decimal) {
 		t.Fatal("expected float64 path to lose precision; test value is not discriminating enough")
 	}
@@ -135,7 +132,7 @@ func TestUnitTextDoesNotUseFloat(t *testing.T) {
 }
 
 func TestWeiTextPreservesBeyondFloatMantissa(t *testing.T) {
-	in := *newWei(new(big.Int).Add(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1)))
+	in := weiFromString("9007199254740993") // 2^53 + 1
 
 	raw, err := in.MarshalText()
 	if err != nil {
@@ -145,8 +142,7 @@ func TestWeiTextPreservesBeyondFloatMantissa(t *testing.T) {
 		t.Fatalf("marshal = %q, want %q", raw, in.String())
 	}
 
-	floatApprox, _ := new(big.Float).SetInt(&in.Int).Float64()
-	if decimal.NewFromFloat(floatApprox).BigInt().Cmp(&in.Int) == 0 {
+	if decimal.NewFromFloat(in.InexactFloat64()).Equal(in.Decimal) {
 		t.Fatal("expected float64 path to lose precision for 2^53+1")
 	}
 
@@ -154,29 +150,8 @@ func TestWeiTextPreservesBeyondFloatMantissa(t *testing.T) {
 	if err := out.UnmarshalText(raw); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if in.Cmp(&out.Int) != 0 {
-		t.Fatalf("text path lost precision: got %s, want %s", &out.Int, &in.Int)
-	}
-}
-
-func TestWeiAppendText(t *testing.T) {
-	in := *newWei(mustBigInt("123456789012345678901234567890"))
-	prefix := []byte("amount=")
-
-	got, err := in.AppendText(prefix)
-	if err != nil {
-		t.Fatalf("append: %v", err)
-	}
-	want := append([]byte(nil), prefix...)
-	want = append(want, []byte(in.String())...)
-	if !bytes.Equal(got, want) {
-		t.Fatalf("AppendText = %q, want %q", got, want)
-	}
-
-	// Original prefix buffer must not be required to stay unmodified beyond len,
-	// but the returned slice should start with the prefix contents.
-	if !bytes.HasPrefix(got, prefix) {
-		t.Fatalf("AppendText missing prefix: %q", got)
+	if !in.Equal(out.Decimal) {
+		t.Fatalf("text path lost precision: got %s, want %s", out, in)
 	}
 }
 
@@ -192,12 +167,4 @@ func assertTextUnmarshaler(t *testing.T, v any) {
 	if _, ok := v.(encoding.TextUnmarshaler); !ok {
 		t.Fatalf("%T does not implement encoding.TextUnmarshaler", v)
 	}
-}
-
-func mustBigInt(s string) *big.Int {
-	v, ok := new(big.Int).SetString(s, 10)
-	if !ok {
-		panic("invalid big.Int string: " + s)
-	}
-	return v
 }

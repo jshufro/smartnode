@@ -2,7 +2,6 @@ package units
 
 import (
 	"fmt"
-	"math/big"
 	"testing"
 
 	"github.com/shopspring/decimal"
@@ -47,18 +46,18 @@ func TestGweiMilliFormatFloat(t *testing.T) {
 }
 
 func TestWeiFormat(t *testing.T) {
-	wei := newWei(big.NewInt(1_500_000))
+	wei := weiFromString("1500000")
 
-	if got, want := fmt.Sprintf("%d", *wei), "1500000"; got != want {
+	if got, want := fmt.Sprintf("%d", wei), "1500000"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if got, want := fmt.Sprintf("%s", *wei), "1500000"; got != want {
+	if got, want := fmt.Sprintf("%s", wei), "1500000"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if got, want := fmt.Sprintf("%.2f", *wei), "1500000.00"; got != want {
+	if got, want := fmt.Sprintf("%.2f", wei), "1500000.00"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
-	if got, want := fmt.Sprintf("%#v", *wei), "units.Wei(1500000)"; got != want {
+	if got, want := fmt.Sprintf("%#v", wei), "units.Wei(1500000)"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }
@@ -72,7 +71,6 @@ func TestFormatPreservesDigitsBeyondFloat(t *testing.T) {
 		t.Fatalf("got %q, want %q", got, want)
 	}
 
-	// Contrast: formatting via float64 loses precision.
 	asFloat := eth.InexactFloat64()
 	floatGot := fmt.Sprintf("%.18f", asFloat)
 	if floatGot == want {

@@ -30,7 +30,7 @@ func (m MilliEth) Format(f fmt.State, verb rune) {
 func (w Wei) Format(f fmt.State, verb rune) {
 	switch verb {
 	case 'f', 'F':
-		formatDecimal(f, verb, decimal.NewFromBigInt(&w.Int, 0), "units.Wei")
+		formatDecimal(f, verb, w.Decimal, "units.Wei")
 	case 'd', 's', 'v':
 		if verb == 'v' && f.Flag('#') {
 			fmt.Fprintf(f, "units.Wei(%s)", w.String())

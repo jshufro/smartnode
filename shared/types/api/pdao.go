@@ -9,6 +9,7 @@ import (
 	"github.com/rocket-pool/smartnode/bindings/dao/protocol"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
 	"github.com/rocket-pool/smartnode/bindings/types"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 type PDAOProposalWithNodeVoteDirection struct {
@@ -47,7 +48,7 @@ type CanVoteOnPDAOProposalResponse struct {
 	InvalidState      bool            `json:"invalidState"`
 	InsufficientPower bool            `json:"insufficientPower"`
 	AlreadyVoted      bool            `json:"alreadyVoted"`
-	VotingPower       *big.Int        `json:"votingPower"`
+	VotingPower       units.Wei       `json:"votingPower"`
 	GasLimits         gaslimit.Limits `json:"gasLimits"`
 }
 type VoteOnPDAOProposalResponse struct {
@@ -72,8 +73,8 @@ type GetPDAOSettingsResponse struct {
 	Auction struct {
 		IsCreateLotEnabled    bool          `json:"isCreateLotEnabled"`
 		IsBidOnLotEnabled     bool          `json:"isBidOnLotEnabled"`
-		LotMinimumEthValue    *big.Int      `json:"lotMinimumEthValue"`
-		LotMaximumEthValue    *big.Int      `json:"lotMaximumEthValue"`
+		LotMinimumEthValue    units.Wei     `json:"lotMinimumEthValue"`
+		LotMaximumEthValue    units.Wei     `json:"lotMaximumEthValue"`
 		LotDuration           time.Duration `json:"lotDuration"`
 		LotStartingPriceRatio *big.Int      `json:"lotStartingPriceRatio"`
 		LotReservePriceRatio  *big.Int      `json:"lotReservePriceRatio"`
@@ -135,11 +136,11 @@ type GetPDAOSettingsResponse struct {
 		IsSmoothingPoolRegistrationEnabled bool          `json:"isSmoothingPoolRegistrationEnabled"`
 		IsDepositingEnabled                bool          `json:"isDepositingEnabled"`
 		AreVacantMinipoolsEnabled          bool          `json:"areVacantMinipoolsEnabled"`
-		MinimumLegacyRplStake              *big.Int      `json:"minimumLegacyRplStake"`
-		ReducedBond                        float64       `json:"reducedBond"`
+		MinimumLegacyRplStake              units.Wei     `json:"minimumLegacyRplStake"`
+		ReducedBond                        units.Eth     `json:"reducedBond"`
 		NodeUnstakingPeriod                time.Duration `json:"nodeUnstakingPeriod"`
 		WithdrawalCooldown                 time.Duration `json:"withdrawalCooldown"`
-		MaximumStakeForVotingPower         *big.Int      `json:"maximumStakeForVotingPower"`
+		MaximumStakeForVotingPower         units.Wei     `json:"maximumStakeForVotingPower"`
 	} `json:"node"`
 
 	Proposals struct {
@@ -147,8 +148,8 @@ type GetPDAOSettingsResponse struct {
 		VotePhase2Time  time.Duration `json:"votePhase2Time"`
 		VoteDelayTime   time.Duration `json:"voteDelayTime"`
 		ExecuteTime     time.Duration `json:"executeTime"`
-		ProposalBond    *big.Int      `json:"proposalBond"`
-		ChallengeBond   *big.Int      `json:"challengeBond"`
+		ProposalBond    units.Wei     `json:"proposalBond"`
+		ChallengeBond   units.Wei     `json:"challengeBond"`
 		ChallengePeriod time.Duration `json:"challengePeriod"`
 		Quorum          *big.Int      `json:"quorum"`
 		VetoQuorum      *big.Int      `json:"vetoQuorum"`
@@ -185,9 +186,9 @@ type CanProposePDAOSettingResponse struct {
 	APIResponse
 	CanPropose             bool            `json:"canPropose"`
 	InsufficientRpl        bool            `json:"proposalCooldownActive"`
-	StakedRpl              *big.Int        `json:"stakedRpl"`
-	LockedRpl              *big.Int        `json:"lockedRpl"`
-	ProposalBond           *big.Int        `json:"proposalBond"`
+	StakedRpl              units.Wei       `json:"stakedRpl"`
+	LockedRpl              units.Wei       `json:"lockedRpl"`
+	ProposalBond           units.Wei       `json:"proposalBond"`
 	BlockNumber            uint32          `json:"blockNumber"`
 	GasLimits              gaslimit.Limits `json:"gasLimits"`
 	IsRplLockingDisallowed bool            `json:"isRplLockingDisallowed"`
@@ -209,9 +210,9 @@ type CanProposePDAOSettingMultiResponse struct {
 	APIResponse
 	CanPropose             bool            `json:"canPropose"`
 	InsufficientRpl        bool            `json:"proposalCooldownActive"`
-	StakedRpl              *big.Int        `json:"stakedRpl"`
-	LockedRpl              *big.Int        `json:"lockedRpl"`
-	ProposalBond           *big.Int        `json:"proposalBond"`
+	StakedRpl              units.Wei       `json:"stakedRpl"`
+	LockedRpl              units.Wei       `json:"lockedRpl"`
+	ProposalBond           units.Wei       `json:"proposalBond"`
 	BlockNumber            uint32          `json:"blockNumber"`
 	GasLimits              gaslimit.Limits `json:"gasLimits"`
 	IsRplLockingDisallowed bool            `json:"isRplLockingDisallowed"`
@@ -436,18 +437,18 @@ type PDAOIsVotingInitializedResponse struct {
 
 type PDAOStatusResponse struct {
 	APIResponse
-	VotingPower                    *big.Int               `json:"votingPower"`
+	VotingPower                    units.Wei              `json:"votingPower"`
 	OnchainVotingDelegate          common.Address         `json:"onchainVotingDelegate"`
 	OnchainVotingDelegateFormatted string                 `json:"onchainVotingDelegateFormatted"`
 	BlockNumber                    uint32                 `json:"blockNumber"`
 	VerifyEnabled                  bool                   `json:"verifyEnabled"`
 	SnapshotResponse               SnapshotResponseStruct `json:"snapshotResponse"`
 	IsRPLLockingAllowed            bool                   `json:"isRPLLockingAllowed"`
-	NodeRPLLocked                  *big.Int               `json:"nodeRPLLocked"`
+	NodeRPLLocked                  units.Wei              `json:"nodeRPLLocked"`
 	AccountAddress                 common.Address         `json:"accountAddress"`
 	AccountAddressFormatted        string                 `json:"accountAddressFormatted"`
-	TotalDelegatedVp               *big.Int               `json:"totalDelegateVp"`
-	SumVotingPower                 *big.Int               `json:"sumVotingPower"`
+	TotalDelegatedVp               units.Wei              `json:"totalDelegateVp"`
+	SumVotingPower                 units.Wei              `json:"sumVotingPower"`
 	IsNodeRegistered               bool                   `json:"isNodeRegistered"`
 	SignallingAddress              common.Address         `json:"signallingAddress"`
 	SignallingAddressFormatted     string                 `json:"SignallingAddressFormatted"`

@@ -15,6 +15,7 @@ import (
 	"github.com/rocket-pool/smartnode/bindings/logs"
 	"github.com/rocket-pool/smartnode/bindings/rocketpool"
 	"github.com/rocket-pool/smartnode/bindings/transactions/gaslimit"
+	"github.com/rocket-pool/smartnode/shared/units"
 )
 
 const (
@@ -91,29 +92,29 @@ func GetClaimIntervalTime(rp *rocketpool.RocketPool, opts *bind.CallOpts) (time.
 }
 
 // Get the percent of checkpoint rewards that goes to node operators
-func GetNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketRewardsPool, err := getRocketRewardsPool(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	perc := new(*big.Int)
-	if err := rocketRewardsPool.Call(opts, perc, "getClaimingContractPerc", "rocketClaimNode"); err != nil {
-		return nil, fmt.Errorf("error getting node operator rewards percent: %w", err)
+	var perc units.Wei
+	if err := rocketRewardsPool.Call(opts, &perc, "getClaimingContractPerc", "rocketClaimNode"); err != nil {
+		return units.Wei{}, fmt.Errorf("error getting node operator rewards percent: %w", err)
 	}
-	return *perc, nil
+	return perc, nil
 }
 
 // Get the percent of checkpoint rewards that goes to ODAO members
-func GetTrustedNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetTrustedNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketRewardsPool, err := getRocketRewardsPool(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	perc := new(*big.Int)
-	if err := rocketRewardsPool.Call(opts, perc, "getClaimingContractPerc", "rocketClaimTrustedNode"); err != nil {
-		return nil, fmt.Errorf("error getting trusted node operator rewards percent: %w", err)
+	perc := units.Wei{}
+	if err := rocketRewardsPool.Call(opts, &perc, "getClaimingContractPerc", "rocketClaimTrustedNode"); err != nil {
+		return units.Wei{}, fmt.Errorf("error getting trusted node operator rewards percent: %w", err)
 	}
-	return *perc, nil
+	return perc, nil
 }
 
 // Get the percent of checkpoint rewards that goes to the PDAO
