@@ -42,11 +42,7 @@ func GetRPLAllowance(rp *rocketpool.RocketPool, owner, spender common.Address, o
 	if err != nil {
 		return units.Wei{}, err
 	}
-	a, err := allowance(rocketTokenRPL, "RPL", owner, spender, opts)
-	if err != nil {
-		return units.Wei{}, err
-	}
-	return units.NewWei(a), nil
+	return allowance(rocketTokenRPL, "RPL", owner, spender, opts)
 }
 
 // Estimate the gas of TransferRPL

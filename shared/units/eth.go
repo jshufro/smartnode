@@ -12,6 +12,12 @@ func EthFromInt(value int) Eth {
 	return Eth{Decimal: decimal.NewFromInt(int64(value))}
 }
 
+// EthFromFloat constructs an Eth from a float64 amount, preserving the
+// float's shortest round-trip decimal representation.
+func EthFromFloat(value float64) Eth {
+	return Eth{Decimal: decimalFromFloat(value)}
+}
+
 func (e Eth) ToWei() Wei {
 	return Wei{e.Decimal.Shift(ethExp - weiExp).Round(weiExp)}
 }
@@ -52,9 +58,8 @@ func (e Eth) Sub(other Eth) Eth {
 	return Eth{e.Decimal.Sub(other.Decimal).Round(ethExp)}
 }
 
-func (e Eth) UnmarshalText(text []byte) error {
-	err := e.Decimal.UnmarshalText(text)
-	if err != nil {
+func (e *Eth) UnmarshalText(text []byte) error {
+	if err := e.Decimal.UnmarshalText(text); err != nil {
 		return err
 	}
 	e.Decimal = e.Decimal.Round(ethExp)

@@ -278,10 +278,10 @@ func (mp *minipool_v3) GetVacant(opts *bind.CallOpts) (bool, error) {
 	}
 	return *isVacant, nil
 }
-func (mp *minipool_v3) GetPreMigrationBalance(opts *bind.CallOpts) (*big.Int, error) {
-	preMigrationBalance := new(*big.Int)
+func (mp *minipool_v3) GetPreMigrationBalance(opts *bind.CallOpts) (units.Wei, error) {
+	preMigrationBalance := new(units.Wei)
 	if err := mp.Contract.Call(opts, preMigrationBalance, "getPreMigrationBalance"); err != nil {
-		return nil, fmt.Errorf("error getting minipool %s pre-migration balance: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting minipool %s pre-migration balance: %w", mp.Address.Hex(), err)
 	}
 	return *preMigrationBalance, nil
 }

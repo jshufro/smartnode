@@ -103,10 +103,10 @@ func balanceOf(tokenContract *rocketpool.Contract, tokenName string, address com
 }
 
 // Get a spender's allowance for an address
-func allowance(tokenContract *rocketpool.Contract, tokenName string, owner, spender common.Address, opts *bind.CallOpts) (*big.Int, error) {
-	allowance := new(*big.Int)
+func allowance(tokenContract *rocketpool.Contract, tokenName string, owner, spender common.Address, opts *bind.CallOpts) (units.Wei, error) {
+	allowance := new(units.Wei)
 	if err := tokenContract.Call(opts, allowance, "allowance", owner, spender); err != nil {
-		return nil, fmt.Errorf("error getting %s allowance of %s for %s: %w", tokenName, spender.Hex(), owner.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting %s allowance of %s for %s: %w", tokenName, spender.Hex(), owner.Hex(), err)
 	}
 	return *allowance, nil
 }

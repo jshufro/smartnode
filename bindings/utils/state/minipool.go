@@ -46,7 +46,7 @@ type NativeMinipoolDetails struct {
 	PreviousDelegate        common.Address        `json:"previous_delegate"`
 	EffectiveDelegate       common.Address        `json:"effective_delegate"`
 	PenaltyCount            *big.Int              `json:"penalty_count"`
-	PenaltyRate             *big.Int              `json:"penalty_rate"`
+	PenaltyRate             units.Wei             `json:"penalty_rate"`
 	NodeAddress             common.Address        `json:"node_address"`
 	Version                 uint8                 `json:"version"`
 	Balance                 units.Wei             `json:"balance"`

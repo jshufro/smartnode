@@ -266,7 +266,7 @@ type NodeSwapRplSwapResponse struct {
 }
 type NodeSwapRplAllowanceResponse struct {
 	APIResponse
-	Allowance *big.Int `json:"allowance"`
+	Allowance units.Wei `json:"allowance"`
 }
 
 type CanNodeStakeRplResponse struct {

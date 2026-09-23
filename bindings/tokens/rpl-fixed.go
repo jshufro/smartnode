@@ -39,10 +39,10 @@ func GetFixedSupplyRPLBalance(rp *rocketpool.RocketPool, address common.Address,
 }
 
 // Get fixed-supply RPL allowance
-func GetFixedSupplyRPLAllowance(rp *rocketpool.RocketPool, owner, spender common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetFixedSupplyRPLAllowance(rp *rocketpool.RocketPool, owner, spender common.Address, opts *bind.CallOpts) (units.Wei, error) {
 	rocketTokenFixedSupplyRPL, err := getRocketTokenRPLFixedSupply(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
 	return allowance(rocketTokenFixedSupplyRPL, "fixed-supply RPL", owner, spender, opts)
 }

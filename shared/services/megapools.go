@@ -250,17 +250,18 @@ func GetNodeMegapoolDetails(rp *rocketpool.RocketPool, bc beacon.Client, nodeAcc
 	if err != nil {
 		return api.MegapoolDetails{}, err
 	}
-	details.NodeShare, err = network.GetCurrentNodeShare(rp, opts)
+	nodeShare, err := network.GetCurrentNodeShare(rp, opts)
 	if err != nil {
 		return api.MegapoolDetails{}, err
 	}
+	details.NodeShare = nodeShare
 	details.NodeExpressTicketCount, err = node.GetExpressTicketCount(rp, nodeAccount, opts)
 	if err != nil {
 		return api.MegapoolDetails{}, err
 	}
 
 	if !details.Deployed {
-		details.NodeBond = big.NewInt(0)
+		details.NodeBond = units.Wei{}
 		return details, nil
 	}
 

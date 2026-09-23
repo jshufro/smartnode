@@ -313,17 +313,17 @@ func (mp *megapoolV1) GetLastDistributionTime(opts *bind.CallOpts) (uint64, erro
 	return (*lastDistributionTime).Uint64(), nil
 }
 
-func (mp *megapoolV1) GetAssignedValue(opts *bind.CallOpts) (*big.Int, error) {
-	assignedValue := new(*big.Int)
+func (mp *megapoolV1) GetAssignedValue(opts *bind.CallOpts) (units.Wei, error) {
+	assignedValue := new(units.Wei)
 	if err := mp.Contract.Call(opts, assignedValue, "getAssignedValue"); err != nil {
-		return nil, fmt.Errorf("error getting megapool %s assigned value: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting megapool %s assigned value: %w", mp.Address.Hex(), err)
 	}
 	return *assignedValue, nil
 }
 
 func (mp *megapoolV1) GetDebt(opts *bind.CallOpts) (units.Wei, error) {
 	debt := new(units.Wei)
-	if err := mp.Contract.Call(opts, &debt, "getDebt"); err != nil {
+	if err := mp.Contract.Call(opts, debt, "getDebt"); err != nil {
 		return units.Wei{}, fmt.Errorf("error getting megapool %s debt: %w", mp.Address.Hex(), err)
 	}
 	return *debt, nil
@@ -337,26 +337,26 @@ func (mp *megapoolV1) GetRefundValue(opts *bind.CallOpts) (units.Wei, error) {
 	return *refundValue, nil
 }
 
-func (mp *megapoolV1) GetNodeBond(opts *bind.CallOpts) (*big.Int, error) {
-	nodeBond := new(*big.Int)
+func (mp *megapoolV1) GetNodeBond(opts *bind.CallOpts) (units.Wei, error) {
+	nodeBond := new(units.Wei)
 	if err := mp.Contract.Call(opts, nodeBond, "getNodeBond"); err != nil {
-		return nil, fmt.Errorf("error getting the node bond %s: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting the node bond %s: %w", mp.Address.Hex(), err)
 	}
 	return *nodeBond, nil
 }
 
-func (mp *megapoolV1) GetNodeQueuedBond(opts *bind.CallOpts) (*big.Int, error) {
-	nodeBond := new(*big.Int)
+func (mp *megapoolV1) GetNodeQueuedBond(opts *bind.CallOpts) (units.Wei, error) {
+	nodeBond := new(units.Wei)
 	if err := mp.Contract.Call(opts, nodeBond, "getNodeQueuedBond"); err != nil {
-		return nil, fmt.Errorf("error getting the node queued bond %s: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting the node queued bond %s: %w", mp.Address.Hex(), err)
 	}
 	return *nodeBond, nil
 }
 
-func (mp *megapoolV1) GetUserCapital(opts *bind.CallOpts) (*big.Int, error) {
-	userCapital := new(*big.Int)
+func (mp *megapoolV1) GetUserCapital(opts *bind.CallOpts) (units.Wei, error) {
+	userCapital := new(units.Wei)
 	if err := mp.Contract.Call(opts, userCapital, "getUserCapital"); err != nil {
-		return nil, fmt.Errorf("error getting megapool %s user capital: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting megapool %s user capital: %w", mp.Address.Hex(), err)
 	}
 	return *userCapital, nil
 }
@@ -377,10 +377,10 @@ func (mp *megapoolV1) CalculateRewards(amount units.Wei, opts *bind.CallOpts) (R
 	return *rewardSplits, nil
 }
 
-func (mp *megapoolV1) GetPendingRewards(opts *bind.CallOpts) (*big.Int, error) {
-	pendingRewards := new(*big.Int)
+func (mp *megapoolV1) GetPendingRewards(opts *bind.CallOpts) (units.Wei, error) {
+	pendingRewards := new(units.Wei)
 	if err := mp.Contract.Call(opts, pendingRewards, "getPendingRewards"); err != nil {
-		return nil, fmt.Errorf("error getting megapool %s pending rewards: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting megapool %s pending rewards: %w", mp.Address.Hex(), err)
 	}
 	return *pendingRewards, nil
 }
@@ -501,10 +501,10 @@ func (mp *megapoolV1) GetWithdrawalCredentials(opts *bind.CallOpts) (common.Hash
 }
 
 // Get the bond amount required for the megapool's next validator
-func (mp *megapoolV1) GetNewValidatorBondRequirement(opts *bind.CallOpts) (*big.Int, error) {
-	bondRequirement := new(*big.Int)
+func (mp *megapoolV1) GetNewValidatorBondRequirement(opts *bind.CallOpts) (units.Wei, error) {
+	bondRequirement := new(units.Wei)
 	if err := mp.Contract.Call(opts, bondRequirement, "getNewValidatorBondRequirement"); err != nil {
-		return nil, fmt.Errorf("error getting megapool %s new validator bond requirement: %w", mp.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting megapool %s new validator bond requirement: %w", mp.Address.Hex(), err)
 	}
 	return *bondRequirement, nil
 }

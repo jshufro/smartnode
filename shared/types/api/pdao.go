@@ -76,24 +76,24 @@ type GetPDAOSettingsResponse struct {
 		LotMinimumEthValue    units.Wei     `json:"lotMinimumEthValue"`
 		LotMaximumEthValue    units.Wei     `json:"lotMaximumEthValue"`
 		LotDuration           time.Duration `json:"lotDuration"`
-		LotStartingPriceRatio *big.Int      `json:"lotStartingPriceRatio"`
-		LotReservePriceRatio  *big.Int      `json:"lotReservePriceRatio"`
+		LotStartingPriceRatio units.Wei     `json:"lotStartingPriceRatio"`
+		LotReservePriceRatio  units.Wei     `json:"lotReservePriceRatio"`
 	} `json:"auction"`
 
 	Deposit struct {
-		IsDepositingEnabled                    bool     `json:"isDepositingEnabled"`
-		AreDepositAssignmentsEnabled           bool     `json:"areDepositAssignmentsEnabled"`
-		MinimumDeposit                         *big.Int `json:"minimumDeposit"`
-		MaximumDepositPoolSize                 *big.Int `json:"maximumDepositPoolSize"`
-		MaximumAssignmentsPerDeposit           uint64   `json:"maximumAssignmentsPerDeposit"`
-		MaximumSocialisedAssignmentsPerDeposit uint64   `json:"maximumSocialisedAssignmentsPerDeposit"`
-		DepositFee                             *big.Int `json:"depositFee"`
-		ExpressQueueRate                       uint64   `json:"expressQueueRate"`
-		ExpressQueueTicketsBaseProvision       uint64   `json:"expressQueueTicketsBaseProvision"`
+		IsDepositingEnabled                    bool      `json:"isDepositingEnabled"`
+		AreDepositAssignmentsEnabled           bool      `json:"areDepositAssignmentsEnabled"`
+		MinimumDeposit                         units.Wei `json:"minimumDeposit"`
+		MaximumDepositPoolSize                 units.Wei `json:"maximumDepositPoolSize"`
+		MaximumAssignmentsPerDeposit           uint64    `json:"maximumAssignmentsPerDeposit"`
+		MaximumSocialisedAssignmentsPerDeposit uint64    `json:"maximumSocialisedAssignmentsPerDeposit"`
+		DepositFee                             units.Wei `json:"depositFee"`
+		ExpressQueueRate                       uint64    `json:"expressQueueRate"`
+		ExpressQueueTicketsBaseProvision       uint64    `json:"expressQueueTicketsBaseProvision"`
 	} `json:"deposit"`
 
 	Inflation struct {
-		IntervalRate *big.Int  `json:"intervalRate"`
+		IntervalRate units.Wei `json:"intervalRate"`
 		StartTime    time.Time `json:"startTime"`
 	} `json:"inflation"`
 
@@ -108,25 +108,25 @@ type GetPDAOSettingsResponse struct {
 	} `json:"minipool"`
 
 	Network struct {
-		OracleDaoConsensusThreshold             *big.Int         `json:"oracleDaoConsensusThreshold"`
-		NodePenaltyThreshold                    *big.Int         `json:"nodePenaltyThreshold"`
-		PerPenaltyRate                          *big.Int         `json:"perPenaltyRate"`
+		OracleDaoConsensusThreshold             units.Wei        `json:"oracleDaoConsensusThreshold"`
+		NodePenaltyThreshold                    units.Wei        `json:"nodePenaltyThreshold"`
+		PerPenaltyRate                          units.Wei        `json:"perPenaltyRate"`
 		IsSubmitBalancesEnabled                 bool             `json:"isSubmitBalancesEnabled"`
 		SubmitBalancesFrequency                 time.Duration    `json:"submitBalancesFrequency"`
 		IsSubmitPricesEnabled                   bool             `json:"isSubmitPricesEnabled"`
 		SubmitPricesFrequency                   time.Duration    `json:"submitPricesFrequency"`
-		MinimumNodeFee                          *big.Int         `json:"minimumNodeFee"`
-		TargetNodeFee                           *big.Int         `json:"targetNodeFee"`
-		MaximumNodeFee                          *big.Int         `json:"maximumNodeFee"`
-		NodeFeeDemandRange                      *big.Int         `json:"nodeFeeDemandRange"`
-		TargetRethCollateralRate                *big.Int         `json:"targetRethCollateralRate"`
+		MinimumNodeFee                          units.Wei        `json:"minimumNodeFee"`
+		TargetNodeFee                           units.Wei        `json:"targetNodeFee"`
+		MaximumNodeFee                          units.Wei        `json:"maximumNodeFee"`
+		NodeFeeDemandRange                      units.Wei        `json:"nodeFeeDemandRange"`
+		TargetRethCollateralRate                units.Wei        `json:"targetRethCollateralRate"`
 		IsSubmitRewardsEnabled                  bool             `json:"isSubmitRewardsEnabled"`
-		NodeCommissionShare                     *big.Int         `json:"nodeCommissionShare"`
-		NodeCommissionShareSecurityCouncilAdder *big.Int         `json:"nodeCommissionShareSecurityCouncilAdder"`
-		VoterShare                              *big.Int         `json:"voterShare"`
-		ProtocolDAOShare                        *big.Int         `json:"protocolDAOShare"`
-		MaxNodeShareSecurityCouncilAdder        *big.Int         `json:"maxNodeCommissionShareCouncilAdder"`
-		MaxRethBalanceDelta                     *big.Int         `json:"maxRethBalanceDelta"`
+		NodeCommissionShare                     units.Wei        `json:"nodeCommissionShare"`
+		NodeCommissionShareSecurityCouncilAdder units.Wei        `json:"nodeCommissionShareSecurityCouncilAdder"`
+		VoterShare                              units.Wei        `json:"voterShare"`
+		ProtocolDAOShare                        units.Wei        `json:"protocolDAOShare"`
+		MaxNodeShareSecurityCouncilAdder        units.Wei        `json:"maxNodeCommissionShareCouncilAdder"`
+		MaxRethBalanceDelta                     units.Wei        `json:"maxRethBalanceDelta"`
 		AllowListedControllers                  []common.Address `json:"allowListedControllers"`
 		RethDepositDelay                        uint64           `json:"rethDepositDelay"`
 	} `json:"network"`
@@ -151,8 +151,8 @@ type GetPDAOSettingsResponse struct {
 		ProposalBond    units.Wei     `json:"proposalBond"`
 		ChallengeBond   units.Wei     `json:"challengeBond"`
 		ChallengePeriod time.Duration `json:"challengePeriod"`
-		Quorum          *big.Int      `json:"quorum"`
-		VetoQuorum      *big.Int      `json:"vetoQuorum"`
+		Quorum          units.Wei     `json:"quorum"`
+		VetoQuorum      units.Wei     `json:"vetoQuorum"`
 		MaxBlockAge     uint64        `json:"maxBlockAge"`
 	} `json:"proposals"`
 
@@ -161,24 +161,24 @@ type GetPDAOSettingsResponse struct {
 	} `json:"rewards"`
 
 	Security struct {
-		MembersQuorum       *big.Int      `json:"membersQuorum"`
+		MembersQuorum       units.Wei     `json:"membersQuorum"`
 		MembersLeaveTime    time.Duration `json:"membersLeaveTime"`
 		ProposalVoteTime    time.Duration `json:"proposalVoteTime"`
 		ProposalExecuteTime time.Duration `json:"proposalExecuteTime"`
 		ProposalActionTime  time.Duration `json:"proposalActionTime"`
-		UpgradeVetoQuorum   *big.Int      `json:"upgradeVetoQuorum"`
+		UpgradeVetoQuorum   units.Wei     `json:"upgradeVetoQuorum"`
 		UpgradeDelay        time.Duration `json:"upgradeDelay"`
 	} `json:"security"`
 
 	Megapool struct {
 		TimeBeforeDissolve               time.Duration `json:"timeBeforeDissolve"`
-		MaximumEthPenalty                *big.Int      `json:"maximumEthPenalty"`
+		MaximumEthPenalty                units.Wei     `json:"maximumEthPenalty"`
 		NotifyThreshold                  uint64        `json:"notifyThreshold"`
-		LateNotifyFine                   *big.Int      `json:"lateNotifyFine"`
-		DissolvePenalty                  *big.Int      `json:"dissolvePenalty"`
+		LateNotifyFine                   units.Wei     `json:"lateNotifyFine"`
+		DissolvePenalty                  units.Wei     `json:"dissolvePenalty"`
 		UserDistributeDelay              uint64        `json:"userDistributeDelay"`
 		UserDistributeDelayWithShortfall uint64        `json:"userDistributeDelayWithShortfall"`
-		PenaltyThreshold                 *big.Int      `json:"penaltyThreshold"`
+		PenaltyThreshold                 units.Wei     `json:"penaltyThreshold"`
 	} `json:"megapool"`
 }
 

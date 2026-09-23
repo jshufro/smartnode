@@ -2,7 +2,6 @@ package auction
 
 import (
 	"context"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/sync/errgroup"
@@ -150,9 +149,9 @@ func getLotCountDetails(rp *rocketpool.RocketPool, bidderAddress common.Address,
 
 	// Data
 	var wg errgroup.Group
-	var addressBidAmount *big.Int
+	var addressBidAmount units.Wei
 	var cleared bool
-	var remainingRpl *big.Int
+	var remainingRpl units.Wei
 	var rplRecovered bool
 
 	// Get address bid amount
@@ -190,9 +189,9 @@ func getLotCountDetails(rp *rocketpool.RocketPool, bidderAddress common.Address,
 
 	// Return
 	return lotCountDetails{
-		AddressHasBid:   (addressBidAmount.Cmp(big.NewInt(0)) > 0),
+		AddressHasBid:   !addressBidAmount.IsZero(),
 		Cleared:         cleared,
-		HasRemainingRpl: (remainingRpl.Cmp(big.NewInt(0)) > 0),
+		HasRemainingRpl: !remainingRpl.IsZero(),
 		RplRecovered:    rplRecovered,
 	}, nil
 
@@ -251,8 +250,8 @@ func getLotDetails(rp *rocketpool.RocketPool, bidderAddress common.Address, lotI
 	}
 
 	// Check lot conditions
-	addressHasBid := (details.AddressBidAmount.Cmp(big.NewInt(0)) > 0)
-	hasRemainingRpl := (details.RemainingRPLAmount.Cmp(big.NewInt(0)) > 0)
+	addressHasBid := !details.AddressBidAmount.IsZero()
+	hasRemainingRpl := !details.RemainingRPLAmount.IsZero()
 
 	// Return
 	return api.LotDetails{

@@ -118,40 +118,40 @@ func GetTrustedNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.
 }
 
 // Get the percent of checkpoint rewards that goes to the PDAO
-func GetProtocolDaoRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetProtocolDaoRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketRewardsPool, err := getRocketRewardsPool(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	perc := new(*big.Int)
+	perc := new(units.Wei)
 	if err := rocketRewardsPool.Call(opts, perc, "getClaimingContractPerc", "rocketClaimDAO"); err != nil {
-		return nil, fmt.Errorf("error getting protocol DAO rewards percent: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting protocol DAO rewards percent: %w", err)
 	}
 	return *perc, nil
 }
 
 // Get the amount of RPL rewards that will be provided to node operators
-func GetPendingRPLRewards(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetPendingRPLRewards(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketRewardsPool, err := getRocketRewardsPool(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	rewards := new(*big.Int)
+	rewards := new(units.Wei)
 	if err := rocketRewardsPool.Call(opts, rewards, "getPendingRPLRewards"); err != nil {
-		return nil, fmt.Errorf("error getting pending RPL rewards: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting pending RPL rewards: %w", err)
 	}
 	return *rewards, nil
 }
 
 // Get the amount of ETH rewards that will be provided to node operators
-func GetPendingETHRewards(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetPendingETHRewards(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketRewardsPool, err := getRocketRewardsPool(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	rewards := new(*big.Int)
+	rewards := new(units.Wei)
 	if err := rocketRewardsPool.Call(opts, rewards, "getPendingETHRewards"); err != nil {
-		return nil, fmt.Errorf("error getting pending ETH rewards: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting pending ETH rewards: %w", err)
 	}
 	return *rewards, nil
 }

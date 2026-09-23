@@ -178,14 +178,14 @@ func GetProposalQuorum(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Et
 }
 
 // The minimum amount of voting power a proposal needs to succeed
-func GetProposalQuorumRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetProposalQuorumRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	proposalsSettingsContract, err := getProposalsSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := proposalsSettingsContract.Call(opts, value, "getProposalQuorum"); err != nil {
-		return nil, fmt.Errorf("error getting proposal quorum: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting proposal quorum: %w", err)
 	}
 	return *value, nil
 }
@@ -210,14 +210,14 @@ func GetProposalVetoQuorum(rp *rocketpool.RocketPool, opts *bind.CallOpts) (unit
 }
 
 // The amount of voting power vetoing a proposal require to veto it
-func GetProposalVetoQuorumRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetProposalVetoQuorumRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	proposalsSettingsContract, err := getProposalsSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := proposalsSettingsContract.Call(opts, value, "getProposalVetoQuorum"); err != nil {
-		return nil, fmt.Errorf("error getting proposal veto quorum: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting proposal veto quorum: %w", err)
 	}
 	return *value, nil
 }

@@ -478,14 +478,14 @@ func GetNodeAverageFee(rp *rocketpool.RocketPool, nodeAddress common.Address, op
 }
 
 // Get a node's average minipool fee
-func GetNodeAverageFeeRaw(rp *rocketpool.RocketPool, nodeAddress common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeAverageFeeRaw(rp *rocketpool.RocketPool, nodeAddress common.Address, opts *bind.CallOpts) (units.Wei, error) {
 	rocketNodeManager, err := getRocketNodeManager(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	avgFee := new(*big.Int)
+	avgFee := new(units.Wei)
 	if err := rocketNodeManager.Call(opts, avgFee, "getAverageNodeFee", nodeAddress); err != nil {
-		return nil, fmt.Errorf("error getting node %s average fee: %w", nodeAddress.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting node %s average fee: %w", nodeAddress.Hex(), err)
 	}
 	return *avgFee, nil
 }

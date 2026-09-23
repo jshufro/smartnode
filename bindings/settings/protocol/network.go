@@ -56,14 +56,14 @@ func GetNodeConsensusThreshold(rp *rocketpool.RocketPool, opts *bind.CallOpts) (
 }
 
 // The threshold of trusted nodes that must reach consensus on oracle data to commit it
-func GetNodeConsensusThresholdRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeConsensusThresholdRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getNodeConsensusThreshold"); err != nil {
-		return nil, fmt.Errorf("error getting trusted node consensus threshold: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting trusted node consensus threshold: %w", err)
 	}
 	return *value, nil
 }
@@ -164,14 +164,14 @@ func GetMinimumNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Et
 }
 
 // Minimum node commission rate
-func GetMinimumNodeFeeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetMinimumNodeFeeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getMinimumNodeFee"); err != nil {
-		return nil, fmt.Errorf("error getting minimum node fee: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting minimum node fee: %w", err)
 	}
 	return *value, nil
 }
@@ -196,14 +196,14 @@ func GetTargetNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Eth
 }
 
 // Target node commission rate
-func GetTargetNodeFeeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetTargetNodeFeeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getTargetNodeFee"); err != nil {
-		return nil, fmt.Errorf("error getting target node fee: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting target node fee: %w", err)
 	}
 	return *value, nil
 }
@@ -228,14 +228,14 @@ func GetMaximumNodeFee(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Et
 }
 
 // Maximum node commission rate
-func GetMaximumNodeFeeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetMaximumNodeFeeRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getMaximumNodeFee"); err != nil {
-		return nil, fmt.Errorf("error getting maximum node fee: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting maximum node fee: %w", err)
 	}
 	return *value, nil
 }
@@ -247,14 +247,14 @@ func EstimateProposeMaximumNodeFeeGas(rp *rocketpool.RocketPool, value *big.Int,
 }
 
 // The range of node demand values to base fee calculations on
-func GetNodeFeeDemandRange(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeFeeDemandRange(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getNodeFeeDemandRange"); err != nil {
-		return nil, fmt.Errorf("error getting node fee demand range: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting node fee demand range: %w", err)
 	}
 	return *value, nil
 }
@@ -279,14 +279,14 @@ func GetTargetRethCollateralRate(rp *rocketpool.RocketPool, opts *bind.CallOpts)
 }
 
 // The target collateralization rate for the rETH contract as a fraction
-func GetTargetRethCollateralRateRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetTargetRethCollateralRateRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getTargetRethCollateralRate"); err != nil {
-		return nil, fmt.Errorf("error getting target rETH contract collateralization rate: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting target rETH contract collateralization rate: %w", err)
 	}
 	return *value, nil
 }
@@ -311,14 +311,14 @@ func GetNetworkPenaltyThreshold(rp *rocketpool.RocketPool, opts *bind.CallOpts) 
 }
 
 // The number of oDAO members that have to vote for a penalty expressed as a percentage
-func GetNetworkPenaltyThresholdRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNetworkPenaltyThresholdRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getNodePenaltyThreshold"); err != nil {
-		return nil, fmt.Errorf("error getting network penalty threshold: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network penalty threshold: %w", err)
 	}
 	return *value, nil
 }
@@ -343,14 +343,14 @@ func GetNetworkPenaltyPerRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (u
 }
 
 // The amount a node operator is penalised for each penalty as a percentage
-func GetNetworkPenaltyPerRateRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNetworkPenaltyPerRateRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, value, "getPerPenaltyRate"); err != nil {
-		return nil, fmt.Errorf("error getting network penalty per rate: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network penalty per rate: %w", err)
 	}
 	return *value, nil
 }
@@ -401,14 +401,14 @@ func EstimateProposeAllowListedControllersGas(rp *rocketpool.RocketPool, value [
 }
 
 // Get the network.node.commission.share setting
-func GetNodeShare(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeShare(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	nodeShare := new(*big.Int)
+	nodeShare := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, nodeShare, "getNodeShare"); err != nil {
-		return nil, fmt.Errorf("error getting network node commission share %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network node commission share %w", err)
 	}
 	return *nodeShare, nil
 }
@@ -421,14 +421,14 @@ func EstimateProposeNodeShareGas(rp *rocketpool.RocketPool, value *big.Int, bloc
 }
 
 // Get the network.node.commission.share.security.council.adder setting
-func GetNodeShareSecurityCouncilAdder(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeShareSecurityCouncilAdder(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	nodeShareSecurityCouncilAdder := new(*big.Int)
+	nodeShareSecurityCouncilAdder := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, nodeShareSecurityCouncilAdder, "getNodeShareSecurityCouncilAdder"); err != nil {
-		return nil, fmt.Errorf("error getting network node commission share %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network node commission share %w", err)
 	}
 	return *nodeShareSecurityCouncilAdder, nil
 }
@@ -441,14 +441,14 @@ func EstimateProposeNodeShareSecurityCouncilAdderGas(rp *rocketpool.RocketPool, 
 }
 
 // Get the network.voter.share setting
-func GetVoterShare(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetVoterShare(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	voterShare := new(*big.Int)
+	voterShare := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, voterShare, "getVoterShare"); err != nil {
-		return nil, fmt.Errorf("error getting network node commission share %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network node commission share %w", err)
 	}
 	return *voterShare, nil
 }
@@ -461,14 +461,14 @@ func EstimateProposeVoterShareGas(rp *rocketpool.RocketPool, value *big.Int, blo
 }
 
 // Get the network.pdao.share setting
-func GetProtocolDAOShare(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetProtocolDAOShare(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	pdaoShare := new(*big.Int)
+	pdaoShare := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, pdaoShare, "getProtocolDAOShare"); err != nil {
-		return nil, fmt.Errorf("error getting network pdao commission share %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network pdao commission share %w", err)
 	}
 	return *pdaoShare, nil
 }
@@ -481,14 +481,14 @@ func EstimateProposeProtocolDAOShare(rp *rocketpool.RocketPool, value *big.Int, 
 }
 
 // Get the network.max.node.commission.share.council.adder setting
-func GetMaxNodeShareSecurityCouncilAdder(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetMaxNodeShareSecurityCouncilAdder(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	maxNodeShareSecurityCouncilAdder := new(*big.Int)
+	maxNodeShareSecurityCouncilAdder := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, maxNodeShareSecurityCouncilAdder, "getMaxNodeShareSecurityCouncilAdder"); err != nil {
-		return nil, fmt.Errorf("error getting network node commission share %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network node commission share %w", err)
 	}
 	return *maxNodeShareSecurityCouncilAdder, nil
 }
@@ -501,14 +501,14 @@ func EstimateMaxNodeShareSecurityCouncilAdder(rp *rocketpool.RocketPool, value *
 }
 
 // Get the network.max.reth.balance.delta setting
-func GetMaxRethDelta(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetMaxRethDelta(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	networkSettingsContract, err := getNetworkSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	maxRethDelta := new(*big.Int)
+	maxRethDelta := new(units.Wei)
 	if err := networkSettingsContract.Call(opts, maxRethDelta, "getMaxRethDelta"); err != nil {
-		return nil, fmt.Errorf("error getting network node commission share %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network node commission share %w", err)
 	}
 	return *maxRethDelta, nil
 }

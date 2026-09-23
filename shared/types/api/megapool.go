@@ -162,7 +162,7 @@ type ValidatorWithdrawableEpochProof struct {
 }
 type GetNewValidatorBondRequirementResponse struct {
 	APIResponse
-	NewValidatorBondRequirement *big.Int `json:"newValidatorBondRequirement"`
+	NewValidatorBondRequirement units.Wei `json:"newValidatorBondRequirement"`
 }
 
 type GetNodeMegapoolEthBondedResponse struct {

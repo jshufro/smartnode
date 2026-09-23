@@ -12,14 +12,14 @@ import (
 )
 
 // Get the current network node demand in ETH
-func GetNodeDemand(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeDemand(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rocketNetworkFees, err := getRocketNetworkFees(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	nodeDemand := new(*big.Int)
+	nodeDemand := new(units.Wei)
 	if err := rocketNetworkFees.Call(opts, nodeDemand, "getNodeDemand"); err != nil {
-		return nil, fmt.Errorf("error getting network node demand: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting network node demand: %w", err)
 	}
 	return *nodeDemand, nil
 }

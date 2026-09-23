@@ -20,29 +20,29 @@ const (
 )
 
 type MegapoolRevenueSplitSettings struct {
-	NodeOperatorCommissionShare *big.Int `json:"node_operator_commission_share"`
-	NodeOperatorCommissionAdder *big.Int `json:"node_operator_commission_adder"`
-	VoterCommissionShare        *big.Int `json:"voter_commission_share"`
-	PdaoCommissionShare         *big.Int `json:"pdao_commission_share"`
+	NodeOperatorCommissionShare units.Wei `json:"node_operator_commission_share"`
+	NodeOperatorCommissionAdder units.Wei `json:"node_operator_commission_adder"`
+	VoterCommissionShare        units.Wei `json:"voter_commission_share"`
+	PdaoCommissionShare         units.Wei `json:"pdao_commission_share"`
 }
 type MegapoolRevenueSplitTimeWeightedAverages struct {
-	NodeShare  *big.Int `json:"node_share"`
-	VoterShare *big.Int `json:"voter_share"`
-	PdaoShare  *big.Int `json:"pdao_share"`
+	NodeShare  units.Wei `json:"node_share"`
+	VoterShare units.Wei `json:"voter_share"`
+	PdaoShare  units.Wei `json:"pdao_share"`
 }
 
 type NetworkDetails struct {
 	// Redstone
 	RplPrice                          units.Wei              `json:"rpl_price"`
-	MinCollateralFraction             *big.Int               `json:"min_collateral_fraction"`
-	MaxCollateralFraction             *big.Int               `json:"max_collateral_fraction"`
-	MinimumLegacyRplStakeFraction     *big.Int               `json:"minimum_legacy_rpl_stake_fraction"`
+	MinCollateralFraction             units.Wei              `json:"min_collateral_fraction"`
+	MaxCollateralFraction             units.Wei              `json:"max_collateral_fraction"`
+	MinimumLegacyRplStakeFraction     units.Wei              `json:"minimum_legacy_rpl_stake_fraction"`
 	IntervalDuration                  time.Duration          `json:"interval_duration"`
 	IntervalStart                     time.Time              `json:"interval_start"`
 	NodeOperatorRewardsPercent        units.Wei              `json:"node_operator_rewards_percent"`
 	TrustedNodeOperatorRewardsPercent units.Wei              `json:"trusted_node_operator_rewards_percent"`
 	ProtocolDaoRewardsPercent         units.Wei              `json:"protocol_dao_rewards_percent"`
-	PendingRPLRewards                 *big.Int               `json:"pending_rpl_rewards"`
+	PendingRPLRewards                 units.Wei              `json:"pending_rpl_rewards"`
 	RewardIndex                       uint64                 `json:"reward_index"`
 	ScrubPeriod                       time.Duration          `json:"scrub_period"`
 	SmoothingPoolAddress              common.Address         `json:"smoothing_pool_address"`

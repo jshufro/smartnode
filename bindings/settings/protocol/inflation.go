@@ -30,14 +30,14 @@ func GetInflationIntervalRate(rp *rocketpool.RocketPool, opts *bind.CallOpts) (u
 }
 
 // RPL inflation rate per interval
-func GetInflationIntervalRateRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetInflationIntervalRateRaw(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	inflationSettingsContract, err := getInflationSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := inflationSettingsContract.Call(opts, value, "getInflationIntervalRate"); err != nil {
-		return nil, fmt.Errorf("error getting inflation rate: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting inflation rate: %w", err)
 	}
 	return *value, nil
 }

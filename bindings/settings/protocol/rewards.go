@@ -43,40 +43,40 @@ func GetRewardsPercentages(rp *rocketpool.RocketPool, opts *bind.CallOpts) (RplR
 }
 
 // The total RPL rewards percentage for node operator collateral
-func GetNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeOperatorRewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rewardsSettingsContract, err := getRewardsSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := rewardsSettingsContract.Call(opts, value, "getRewardsClaimersNodePerc"); err != nil {
-		return nil, fmt.Errorf("error getting node operator rewards percent: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting node operator rewards percent: %w", err)
 	}
 	return *value, nil
 }
 
 // The total RPL rewards percentage for Oracle DAO members
-func GetOracleDAORewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetOracleDAORewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rewardsSettingsContract, err := getRewardsSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := rewardsSettingsContract.Call(opts, value, "getRewardsClaimersTrustedNodePerc"); err != nil {
-		return nil, fmt.Errorf("error getting oracle DAO rewards percent: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting oracle DAO rewards percent: %w", err)
 	}
 	return *value, nil
 }
 
 // The total RPL rewards percentage for the Protocol DAO treasury
-func GetProtocolDAORewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (*big.Int, error) {
+func GetProtocolDAORewardsPercent(rp *rocketpool.RocketPool, opts *bind.CallOpts) (units.Wei, error) {
 	rewardsSettingsContract, err := getRewardsSettingsContract(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
-	value := new(*big.Int)
+	value := new(units.Wei)
 	if err := rewardsSettingsContract.Call(opts, value, "getRewardsClaimersProtocolPerc"); err != nil {
-		return nil, fmt.Errorf("error getting protocol DAO rewards percent: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting protocol DAO rewards percent: %w", err)
 	}
 	return *value, nil
 }

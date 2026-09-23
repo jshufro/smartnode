@@ -2,7 +2,6 @@ package node
 
 import (
 	"fmt"
-	"math/big"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -89,10 +88,10 @@ func (d *Distributor) GetNodeShare(opts *bind.CallOpts) (units.Wei, error) {
 }
 
 // Gets the user share of the distributor's current balance
-func (d *Distributor) GetUserShare(opts *bind.CallOpts) (*big.Int, error) {
-	userShare := new(*big.Int)
+func (d *Distributor) GetUserShare(opts *bind.CallOpts) (units.Wei, error) {
+	userShare := new(units.Wei)
 	if err := d.Contract.Call(opts, userShare, "getUserShare"); err != nil {
-		return nil, fmt.Errorf("error getting distributor %s user share: %w", d.Address.Hex(), err)
+		return units.Wei{}, fmt.Errorf("error getting distributor %s user share: %w", d.Address.Hex(), err)
 	}
 	return *userShare, nil
 }

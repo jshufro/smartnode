@@ -207,15 +207,15 @@ func GetNodeUsableCreditAndBalance(rp *rocketpool.RocketPool, nodeAddress common
 }
 
 // Get the amount of ETH credit currently usable by a given node operator
-func GetNodeUsableCredit(rp *rocketpool.RocketPool, nodeAddress common.Address, opts *bind.CallOpts) (*big.Int, error) {
+func GetNodeUsableCredit(rp *rocketpool.RocketPool, nodeAddress common.Address, opts *bind.CallOpts) (units.Wei, error) {
 	rocketNodeDeposit, err := getRocketNodeDeposit(rp, opts)
 	if err != nil {
-		return nil, err
+		return units.Wei{}, err
 	}
 
-	usableCredit := new(*big.Int)
+	usableCredit := new(units.Wei)
 	if err := rocketNodeDeposit.Call(opts, usableCredit, "getNodeUsableCredit", nodeAddress); err != nil {
-		return nil, fmt.Errorf("error getting node usable credit: %w", err)
+		return units.Wei{}, fmt.Errorf("error getting node usable credit: %w", err)
 	}
 	return *usableCredit, nil
 }

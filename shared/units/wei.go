@@ -25,6 +25,12 @@ func WeiFromUint64(value uint64) Wei {
 	return Wei{Decimal: decimal.NewFromUint64(value)}
 }
 
+// BigInt returns the integer wei representation. Prefer this over relying on
+// the promoted decimal.Decimal.BigInt method at call sites.
+func (w Wei) BigInt() *big.Int {
+	return w.Decimal.BigInt()
+}
+
 func (w Wei) ToWei() Wei {
 	return Wei{w.Decimal.Round(weiExp)}
 }
@@ -59,4 +65,12 @@ func (w Wei) Mul(other Wei) Wei {
 
 func (w Wei) Sub(other Wei) Wei {
 	return Wei{w.Decimal.Sub(other.Decimal)}
+}
+
+func (w *Wei) UnmarshalText(text []byte) error {
+	if err := w.Decimal.UnmarshalText(text); err != nil {
+		return err
+	}
+	w.Decimal = w.Decimal.Round(weiExp)
+	return nil
 }
